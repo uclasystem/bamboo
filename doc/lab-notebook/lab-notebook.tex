@@ -1,0 +1,65 @@
+\documentclass{report}
+
+\usepackage{bashful}
+\usepackage[backend=biber, maxnames=4, mincrossrefs=999, sorting=nyt]{biblatex}
+\usepackage{enumitem}
+\usepackage{fancyref}
+\usepackage{fontspec}
+\usepackage[letterpaper, top=25mm, bottom=25mm, left=18mm, right=18mm]{geometry}
+\usepackage{hyperref}
+\usepackage{pgfplots}
+\usepackage{ragged2e}
+\usepackage{tikz}
+\usepackage{varioref}
+
+\addbibresource{../references/unsorted.bib}
+
+\setlist{nosep}
+
+\pgfplotsset{
+  compat=1.17,
+}
+
+\newcommand{\project}{``Project Pactum''}
+
+\newcommand{\reffig}[1]{Figure~\vref{fig:#1}}
+\newcommand{\reflst}[1]{Listing~\vref{lst:#1}}
+\newcommand{\refsec}[1]{Section~\vref{sec:#1}}
+\newcommand{\reftbl}[1]{Table~\vref{tbl:#1}}
+
+\definecolor{solarizedYellow}{RGB}{181, 137, 0}
+\definecolor{solarizedOrange}{RGB}{203, 75, 22}
+\definecolor{solarizedRed}{RGB}{220, 50, 47}
+\definecolor{solarizedMagenta}{RGB}{211, 54, 130}
+\definecolor{solarizedViolet}{RGB}{108, 113, 196}
+\definecolor{solarizedBlue}{RGB}{38, 139, 210}
+\definecolor{solarizedCyan}{RGB}{42, 161, 152}
+\definecolor{solarizedGreen}{RGB}{133, 153, 0}
+
+\title{{\Huge \sffamily \project{}}
+       \\
+       {\sffamily Lab Notebook}
+       \\[-3mm]
+       {\ttfamily \normalsize \splice{../../version.sh}}}
+\author{
+  Jonathan Eyolfson
+  \and
+  John Thorpe
+}
+\date{}
+
+\begin{document}
+
+\pagenumbering{gobble}
+
+\maketitle
+
+\pagenumbering{arabic}
+
+\tableofcontents
+
+\input{chapters/design.tex}
+
+\printbibliography[title=References]
+
+\end{document}
