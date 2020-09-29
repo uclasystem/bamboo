@@ -40,7 +40,6 @@ if [ $? -eq 0 ]; then
     fi
 fi
 
-
 git_tag_closest=$(git describe --abbrev=0 2> /dev/null)
 if [ $? -eq 0 ]; then
     if [ ${version_full} == ${git_tag_closest} ]; then
@@ -67,7 +66,8 @@ if [ -n "${git_commit_count}" ]; then
     if git diff --quiet 2> /dev/null; then
         echo "${version_full}-${git_commit_count}+git.${git_commit_id}"
     else
-        echo "${version_full}-${git_commit_count}.0+git.${git_commit_id}"
+	let "git_commit_count+=1"
+        echo "${version_full}-${git_commit_count}+git.${git_commit_id}.dirty"
     fi
     exit 0
 fi
