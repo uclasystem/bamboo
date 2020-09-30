@@ -12,4 +12,8 @@ def main(args):
 	from project_pactum.core.base import parse, setup
 
 	options = parse(args)
+
 	setup()
+
+	if 'command' in options:
+		options.command(options)

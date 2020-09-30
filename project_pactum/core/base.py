@@ -3,8 +3,6 @@ import functools
 import logging
 import subprocess
 
-from project_pactum import VERSION
-
 class ProjectPactumFormatter(logging.Formatter):
 
 	def format(self, record):
@@ -18,11 +16,36 @@ class ProjectPactumFormatter(logging.Formatter):
 		formatter = logging.Formatter(fmt.format(color=COLORS[record.levelno]))
 		return formatter.format(record)
 
+def core_add_arguments(parser):
+	from project_pactum import VERSION
+	parser.add_argument('--version', action='version',
+	                    version='Project Pactum {}'.format(VERSION))
+
+def dataset_add_arguments(parser):
+	from project_pactum.dataset.command import add_command, list_command, remove_command
+	subparsers = parser.add_subparsers(metavar='command')
+
+	add_parser = subparsers.add_parser('add', help=None)
+	add_parser.set_defaults(command=add_command)
+	add_parser.add_argument('datasets', nargs='+')
+
+	list_parser = subparsers.add_parser('list', help=None)
+	list_parser.set_defaults(command=list_command)
+
+	remove_parser = subparsers.add_parser('remove', help=None)
+	remove_parser.set_defaults(command=remove_command)
+	remove_parser.add_argument('datasets', nargs='+')
+
 def parse(args):
 	parser = argparse.ArgumentParser(prog='project_pactum',
 	                                 description='Project Pactum')
-	parser.add_argument('--version', action='version',
-	                    version='Project Pactum {}'.format(VERSION))
+	core_add_arguments(parser)
+
+	subparsers = parser.add_subparsers(metavar='command')
+
+	dataset_parser = subparsers.add_parser('dataset', help=None)
+	dataset_add_arguments(dataset_parser)
+
 	return parser.parse_args(args)
 
 def setup_logging():
