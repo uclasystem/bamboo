@@ -1,0 +1,75 @@
+\chapter{Related Work}
+\label{ch:related work}
+
+\section{ApproxHadoop \cite{igogoiriandbianchini2015approxhadoop}}
+\emph{Main Idea:} Incorporates statistical approximation techniques into
+Hadoop to allow for increased performance while providing guarantees about
+the error and confidence interval of the results (by default 1\% and 95\%
+respectively).
+\begin{itemize}
+
+    \item Techniques applied
+    \begin{itemize}
+        \item Multi-Stage sampling (data sampling and task dropping)
+        \item Extreme Value Theory (task dropping)
+        \item Approx UDFs (not covered in paper or relevant to our project)
+    \end{itemize}
+
+    \item \emph{Multi-Stage sampling (MSS):} Given some data that is separated
+      into clusters
+    \begin{itemize}
+        \item First: take some random sample among the clusters (select subset
+          of the clusters)
+        \item Second: take some random sample within each of the selected
+          clusters
+        \item Applicable to operators such as sum, mean, etc
+    \end{itemize} 
+
+    \item \emph{Extreme Value Theory (EVT):} Use a sample of mins/maxs in combo
+      w/ Generalized Extreme Value (GEV) distributions
+    \begin{itemize}
+        \item Use the Maximum Likelihood Estimator (MLE) of received samples to
+          estimate global max/min
+        \item Understanding of this fuzzy...
+    \end{itemize}
+
+    \item Implementation in Hadoop
+    \begin{itemize}
+        \item MSS: implemented as combination of task dropping and data
+          sampling
+        \begin{itemize}
+            \item Task Dropping is cluster-level sampling as whole partitions
+              will get dropped if the task is dropped
+            \item Randomized sampling is done within each partition as next
+              level sampling
+        \end{itemize}
+        \item EVT: Use MLE on samples received so far until confidence level
+          satisfied
+        \item Implemented a error/confidence tracker in the reduce tasks s.t.
+          tasks can be dropped early when targets reached
+        \item Computation barrier removed between map/reduce stages to allow
+          for iterative refining of error/confidence targets
+    \end{itemize}
+
+    \item Applications/Questions for our paper
+    \begin{itemize}
+        \item At what granularity would we want to provide statistical
+          guarantees? \\
+        \emph{Discussion:} Currently my understanding is the operator
+        granularity at which we would be doing our sampling is the weight
+        updates.
+        As in, if we lose a transient worker during the backward phase to
+        revocation, we would then apply the weight updates based on the sample
+        size we received and have some statistical guarantees that as long as
+        we received a ceratin sample size we can get good results.
+        If there is a failure during the forward maybe we could use these
+        techniques at the operator level? Though now that I think about it, a
+        worker failure would not be amenable to these techinques as in this case
+        the entire sample is an atomic unit (we would not somehow get partial
+        results of a batch). \\
+        We could still probably use their concept of error bounding and
+        confidenc intervals to maintain our accuracy.
+
+    \end{itemize}
+
+\end{itemize}
