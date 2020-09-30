@@ -2,11 +2,13 @@ import logging
 
 import project_pactum
 
+from project_pactum.dataset.base import slug_to_var_name
+
 logger = logging.getLogger(__name__)
 
 def add_command(options):
 	for slug in options.datasets:
-		var_name = slug.replace('-', '_')
+		var_name = slug_to_var_name(slug)
 		dataset = project_pactum.datasets[var_name]
 		if not dataset.exists():
 			dataset.add()
