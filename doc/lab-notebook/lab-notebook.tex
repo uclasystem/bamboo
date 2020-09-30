@@ -1,7 +1,7 @@
 \documentclass{report}
 
 \usepackage{bashful}
-\usepackage[backend=biber, maxnames=4, mincrossrefs=999, sorting=nyt]{biblatex}
+\usepackage[backend=biber, maxnames=4, maxnames=99, mincrossrefs=999, sorting=nyt]{biblatex}
 \usepackage{enumitem}
 \usepackage{fancyref}
 \usepackage{fontspec}
@@ -27,6 +27,10 @@
 \newcommand{\reflst}[1]{Listing~\vref{lst:#1}}
 \newcommand{\refsec}[1]{Section~\vref{sec:#1}}
 \newcommand{\reftbl}[1]{Table~\vref{tbl:#1}}
+
+\newcommand{\citesubsection}[2]{
+  \subsection[#1]{#1 \cite{#2}}
+}
 
 \definecolor{solarizedYellow}{RGB}{181, 137, 0}
 \definecolor{solarizedOrange}{RGB}{203, 75, 22}
