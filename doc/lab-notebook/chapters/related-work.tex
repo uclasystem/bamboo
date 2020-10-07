@@ -5,16 +5,34 @@
 
 \citesubsection{Proteus}{eurosys/2017/harlap}
 
-This may be the closest paper to what we want to do.
+Proteus is a baseline to our work.
+There are two main differences.
+First, their checkpointing basically starts an iteration with all active workers
+and computes the gradients assuming all will pass.
+They don't do anything statistical.
+If servers are added or removed, it'll restart the iteration.
+Their evaluation was only on transient servers, we may have challenges with GPU
+instances.
 
 \section{Spot Instances}
 
-\citesubsection{Exploratory Study for ML }{corr/abs-1903-00045}
+\citesubsection{Analysis and Exploitation (2020)}{dispa/2020/narayanan}
+
+\citesubsection{Exploratory Study for ML}{corr/abs-1903-00045}
 
 \citesubsection{Tributary}{usenix-atc/2018/harlap}
 
 This paper basically describes using ML to determine spot instance strategies
 for distributing a CPU task.
+
+\citesubsection{Flint}{eurosys/2016/sharma}
+
+An extension to Spark.
+Figure 2 shows the CDF of server availability, this data is from 2016.
+
+\section{Optimizer}
+
+\citesubsection{Willump}{mlsys/2020/kraft}
 
 \section{Dynamic Scheduling}
 
