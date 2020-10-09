@@ -45,7 +45,7 @@ def run_host():
 		ssh_cmd = ' '.join(['ssh', '-i', key_file, 'project-pactum@{}'.format(public_ip), ''])
 		subprocess.run(ssh_cmd + 'cd project-pactum && git pull --ff-only', shell=True)
 		print(ssh_cmd + '"cd project-pactum && git pull --ff-only"')
-		p = subprocess.Popen(ssh_cmd + '"cd project-pactum && TF_CONF=\'{}\' python3.8 -m project_pactum experiment tutorial-mnist"'.format(tf_configs[public_ip]), shell=True)
+		p = subprocess.Popen(ssh_cmd + '"cd project-pactum && TF_CONF=\'{}\' ~/venv/bin/python3 -m project_pactum experiment tutorial-mnist"'.format(tf_configs[public_ip]), shell=True)
 		ps.append(p)
 	for p in ps:
 		p.wait()
