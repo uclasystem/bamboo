@@ -78,11 +78,18 @@ def setup_logging():
 	logging.getLogger('botocore.parsers').addHandler(logging.NullHandler())
 	logging.getLogger('botocore.parsers').propagate = False
 
+def setup_tensorflow():
+	import tensorflow as tf
+	gpus = tf.config.list_physical_devices('GPU')
+	for gpu in gpus:
+		tf.config.experimental.set_memory_growth(gpu, True)
+
 def setup():
 	from project_pactum.dataset.base import setup_datasets
 
 	setup_logging()
 	setup_datasets()
+	setup_tensorflow()
 
 @functools.wraps(subprocess.run)
 def run(args, **kwargs):
