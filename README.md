@@ -7,6 +7,7 @@ TODO.
 Ensure you have the following requirements:
 
 - Python 3.8
+- TensorFlow 2.3
 
 Documentation has the following requirements:
 
@@ -15,7 +16,7 @@ Documentation has the following requirements:
 
 First, create the virtual environment:
 
-    python -m venv venv
+    python -m venv --system-site-packages venv
     source venv/bin/activate
     pip install -U pip
 
