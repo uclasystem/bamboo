@@ -1,7 +1,10 @@
 import tensorflow_datasets as tfds
 import tensorflow as tf
 
+import json
 import os
+import pathlib
+import subprocess
 
 import project_pactum
 
@@ -21,13 +24,39 @@ def decay(epoch):
 	else:
 		return 1e-5
 
+def run_host():
+	home_dir = str(pathlib.Path.home())
+	key_file = os.path.join(home_dir, '.ssh', 'project-pactum')
+
+	public_ips = project_pactum.aws.instance.get_public_ips()
+	private_ips = project_pactum.aws.instance.get_private_ips()
+
+	tf_configs = {}
+	for i, public_ip in enumerate(public_ips):
+                tf_configs[public_ip] = json.dumps({
+			"cluster": {
+				"worker": ['{}:55432'.format(x) for x in private_ips],
+			},
+			"task": {"type": "worker", "index": i}
+		})
+
+	ps = []
+	for public_ip in public_ips:
+		ssh_cmd = ' '.join(['ssh', '-i', key_file, 'project-pactum@{}'.format(public_ip), ''])
+		subprocess.run(ssh_cmd + 'cd project-pactum && git pull --ff-only', shell=True)
+		print(ssh_cmd + '"cd project-pactum && git pull --ff-only"')
+		p = subprocess.Popen(ssh_cmd + '"cd project-pactum && TF_CONF=\'{}\' python3.8 -m project_pactum experiment tutorial-mnist"'.format(tf_configs[public_ip]), shell=True)
+		ps.append(p)
+	for p in ps:
+		p.wait()
+
 def run():
 	experiment_dir = os.path.join(project_pactum.BASE_DIR, 'experiment', 'tutorial-mnist')
 
 	datasets, info = tfds.load(name='mnist', with_info=True, as_supervised=True)
 	mnist_train, mnist_test = datasets['train'], datasets['test']
 
-	strategy = tf.distribute.MirroredStrategy()
+	strategy = tf.distribute.experimental.MultiWorkerMirroredStrategy()
 	print('Number of devices: {}'.format(strategy.num_replicas_in_sync))
 
 	num_train_examples = info.splits['train'].num_examples

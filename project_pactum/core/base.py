@@ -50,6 +50,8 @@ def experiment_add_arguments(parser):
 	tutorial_mnist_parser = subparsers.add_parser('tutorial-mnist', help=None)
 	tutorial_mnist_parser.set_defaults(command=tutorial_mnist_command)
 
+	tutorial_mnist_parser.add_argument('--host', action='store_true')
+
 def parse(args):
 	parser = argparse.ArgumentParser(prog='project_pactum',
 	                                 description='Project Pactum')
@@ -72,6 +74,9 @@ def setup_logging():
 	stream_handler = logging.StreamHandler()
 	stream_handler.setFormatter(ProjectPactumFormatter())
 	logging.basicConfig(level=logging.DEBUG, handlers=[stream_handler])
+
+	logging.getLogger('botocore.parsers').addHandler(logging.NullHandler())
+	logging.getLogger('botocore.parsers').propagate = False
 
 def setup():
 	from project_pactum.dataset.base import setup_datasets
