@@ -21,11 +21,6 @@ def decay(epoch):
 	else:
 		return 1e-5
 
-class PrintLR(tf.keras.callbacks.Callback):
-	def on_epoch_end(self, epoch, logs=None):
-		print('\nLearning rate for epoch {} is {}'.format(epoch + 1,
-		                                                  model.optimizer.lr.numpy()))
-
 def run():
 	experiment_dir = os.path.join(project_pactum.BASE_DIR, 'experiment', 'tutorial-mnist')
 
@@ -62,6 +57,11 @@ def run():
                 
 	checkpoint_dir = os.path.join(experiment_dir, 'training_checkpoints')
 	checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt_{epoch}")
+
+	class PrintLR(tf.keras.callbacks.Callback):
+		def on_epoch_end(self, epoch, logs=None):
+			print('\nLearning rate for epoch {} is {}'.format(epoch + 1,
+		                                                  model.optimizer.lr.numpy()))
 
 	callbacks = [
 		tf.keras.callbacks.TensorBoard(log_dir=os.path.join(experiment_dir, 'logs')),
