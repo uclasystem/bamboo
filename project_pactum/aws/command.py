@@ -1,5 +1,3 @@
-import boto3
-
 from .instance import get_public_ips
 
 def test_command(options):
