@@ -36,6 +36,13 @@ def dataset_add_arguments(parser):
 	remove_parser.set_defaults(command=remove_command)
 	remove_parser.add_argument('datasets', nargs='+')
 
+def experiment_add_arguments(parser):
+	from project_pactum.experiment.command import tutorial_mnist_command
+	subparsers = parser.add_subparsers(metavar='command')
+
+	tutorial_mnist_parser = subparsers.add_parser('tutorial-mnist', help=None)
+	tutorial_mnist_parser.set_defaults(command=tutorial_mnist_command)
+
 def parse(args):
 	parser = argparse.ArgumentParser(prog='project_pactum',
 	                                 description='Project Pactum')
@@ -45,6 +52,9 @@ def parse(args):
 
 	dataset_parser = subparsers.add_parser('dataset', help=None)
 	dataset_add_arguments(dataset_parser)
+
+	experiment_parser = subparsers.add_parser('experiment', help=None)
+	experiment_add_arguments(experiment_parser)
 
 	return parser.parse_args(args)
 
