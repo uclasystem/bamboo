@@ -28,6 +28,13 @@ def aws_add_arguments(parser):
 	test_parser = subparsers.add_parser('test', help=None)
 	test_parser.set_defaults(command=test_command)
 
+def check_add_arguments(parser):
+	from project_pactum.check.command import test_command
+	subparsers = parser.add_subparsers(metavar='command')
+
+	test_parser = subparsers.add_parser('test', help=None)
+	test_parser.set_defaults(command=test_command)
+
 def dataset_add_arguments(parser):
 	from project_pactum.dataset.command import add_command, list_command, remove_command
 	subparsers = parser.add_subparsers(metavar='command')
@@ -61,6 +68,9 @@ def parse(args):
 
 	aws_parser = subparsers.add_parser('aws', help=None)
 	aws_add_arguments(aws_parser)
+
+	check_parser = subparsers.add_parser('check', help=None)
+	check_add_arguments(check_parser)
 
 	dataset_parser = subparsers.add_parser('dataset', help=None)
 	dataset_add_arguments(dataset_parser)
