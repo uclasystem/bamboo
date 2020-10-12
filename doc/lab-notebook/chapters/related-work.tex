@@ -11,8 +11,8 @@ First, their checkpointing basically starts an iteration with all active workers
 and computes the gradients assuming all will pass.
 They don't do anything statistical.
 If servers are added or removed, it'll restart the iteration.
-Their evaluation was only on transient servers, we may have challenges with GPU
-instances.
+Their evaluation was only on CPU transient servers, we may have challenges with
+GPU servers.
 
 \section{Spot Instances}
 
@@ -39,6 +39,8 @@ Figure 2 shows the CDF of server availability, this data is from 2016.
 \section{Distributed ML}
 
 \citesubsection{Mesh-TensorFlow}{nips/2018/shazeer}
+
+Suggestion to try.
 
 \citesubsection{Horovod}{corr/abs-1802-05799}
 
