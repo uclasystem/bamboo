@@ -88,6 +88,11 @@ def setup_logging():
 	logging.getLogger('botocore.parsers').addHandler(logging.NullHandler())
 	logging.getLogger('botocore.parsers').propagate = False
 
+	logging.getLogger('tensorflow').setLevel(logging.ERROR)
+
+	import os
+	os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
 def setup_tensorflow():
 	import tensorflow as tf
 	gpus = tf.config.list_physical_devices('GPU')
