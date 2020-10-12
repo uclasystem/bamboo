@@ -29,11 +29,11 @@ def aws_add_arguments(parser):
 	test_parser.set_defaults(command=test_command)
 
 def check_add_arguments(parser):
-	from project_pactum.check.command import test_command
 	subparsers = parser.add_subparsers(metavar='command')
 
-	test_parser = subparsers.add_parser('test', help=None)
-	test_parser.set_defaults(command=test_command)
+	from project_pactum.check.command import version_command
+	version_parser = subparsers.add_parser('version', help=None)
+	version_parser.set_defaults(command=version_command)
 
 def dataset_add_arguments(parser):
 	from project_pactum.dataset.command import add_command, list_command, remove_command
@@ -88,6 +88,7 @@ def setup_logging():
 	logging.getLogger('botocore.parsers').addHandler(logging.NullHandler())
 	logging.getLogger('botocore.parsers').propagate = False
 
+	logging.getLogger('absl').setLevel(logging.ERROR)
 	logging.getLogger('tensorflow').setLevel(logging.ERROR)
 
 	import os
