@@ -1,6 +1,3 @@
-import tensorflow_datasets as tfds
-import tensorflow as tf
-
 import json
 import os
 import pathlib
@@ -8,103 +5,103 @@ import subprocess
 
 import project_pactum
 
+import tensorflow as tf
+
 # Copied from https://www.tensorflow.org/tutorials/distribute/keras
+# Copied from https://www.tensorflow.org/tutorials/distribute/multi_worker_with_keras
 
-def scale(image, label):
-	image = tf.cast(image, tf.float32)
-	image /= 255
+def _is_chief(task_type, task_id):
+	return task_type is None or task_type == 'chief' or (task_type == 'worker' and task_id == 0)
 
-	return image, label
+def load_data(batch_size):
+	import numpy as np
+	(x_train, y_train), _ = tf.keras.datasets.mnist.load_data()
+	x_train = x_train / np.float32(255)
+	y_train = y_train.astype(np.int64)
+	train_dataset = tf.data.Dataset.from_tensor_slices(
+		(x_train, y_train)).shuffle(60000).repeat().batch(batch_size)
+	return train_dataset
 
-def decay(epoch):
-	if epoch < 3:
-		return 1e-3
-	elif epoch >= 3 and epoch < 7:
-		return 1e-4
-	else:
-		return 1e-5
+def _get_temp_dir(dirpath, task_id):
+	base_dirpath = 'workertemp_' + str(task_id)
+	temp_dir = os.path.join(dirpath, base_dirpath)
+	tf.io.gfile.makedirs(temp_dir)
+	return temp_dir
 
-def run_host():
-	home_dir = str(pathlib.Path.home())
-	key_file = os.path.join(home_dir, '.ssh', 'project-pactum')
+def write_dir(d, task_type, task_id):
+	dirname = os.path.dirname(d)
+	basename = os.path.basename(d)
+	if not _is_chief(task_type, task_id):
+		dirname = _get_temp_dir(d, task_id)
+	return os.path.join(dirname, basename)
 
-	public_ips = project_pactum.aws.instance.get_public_ips()
-	private_ips = project_pactum.aws.instance.get_private_ips()
-
-	tf_configs = {}
-	for i, public_ip in enumerate(public_ips):
-                tf_configs[public_ip] = json.dumps({
-			"cluster": {
-				"worker": ['{}:55432'.format(x) for x in private_ips],
-			},
-			"task": {"type": "worker", "index": i}
-		})
-
-	ps = []
-	for public_ip in public_ips:
-		ssh_cmd = ' '.join(['ssh', '-i', key_file, 'project-pactum@{}'.format(public_ip), ''])
-		subprocess.run(ssh_cmd + 'cd project-pactum && git pull --ff-only', shell=True)
-		print(ssh_cmd + '"cd project-pactum && git pull --ff-only"')
-		p = subprocess.Popen(ssh_cmd + '"cd project-pactum && TF_CONF=\'{}\' ~/venv/bin/python3 -m project_pactum experiment tutorial-mnist"'.format(tf_configs[public_ip]), shell=True)
-		ps.append(p)
-	for p in ps:
-		p.wait()
-
-def run():
-	experiment_dir = os.path.join(project_pactum.BASE_DIR, 'experiment', 'tutorial-mnist')
-
-	datasets, info = tfds.load(name='mnist', with_info=True, as_supervised=True)
-	mnist_train, mnist_test = datasets['train'], datasets['test']
-
-	strategy = tf.distribute.experimental.MultiWorkerMirroredStrategy()
-	print('Number of devices: {}'.format(strategy.num_replicas_in_sync))
-
-	num_train_examples = info.splits['train'].num_examples
-	num_test_examples = info.splits['test'].num_examples
-
-	BUFFER_SIZE = 10000
-
-	BATCH_SIZE_PER_REPLICA = 64
-	BATCH_SIZE = BATCH_SIZE_PER_REPLICA * strategy.num_replicas_in_sync
-
-	train_dataset = mnist_train.map(scale).cache().shuffle(BUFFER_SIZE).batch(BATCH_SIZE)
-	eval_dataset = mnist_test.map(scale).batch(BATCH_SIZE)
-
-	with strategy.scope():
-		model = tf.keras.Sequential([
-			tf.keras.layers.Conv2D(32, 3, activation='relu', input_shape=(28, 28, 1)),
-			tf.keras.layers.MaxPooling2D(),
-			tf.keras.layers.Flatten(),
-			tf.keras.layers.Dense(64, activation='relu'),
-			tf.keras.layers.Dense(10)
-		])
-
+def build_and_compile_model():
+	model = tf.keras.Sequential([
+		tf.keras.Input(shape=(28, 28)),
+		tf.keras.layers.Reshape(target_shape=(28, 28, 1)),
+		tf.keras.layers.Conv2D(32, 3, activation='relu'),
+		tf.keras.layers.Flatten(),
+		tf.keras.layers.Dense(128, activation='relu'),
+		tf.keras.layers.Dense(10)
+	])
 	model.compile(loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
 	              optimizer=tf.keras.optimizers.Adam(),
 	              metrics=['accuracy'])
+	return model
 
-                
-	checkpoint_dir = os.path.join(experiment_dir, 'training_checkpoints')
-	checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt_{epoch}")
+def run(worker_index):
+	experiment_dir = os.path.join(project_pactum.BASE_DIR, 'experiment', 'tutorial-mnist')
 
-	class PrintLR(tf.keras.callbacks.Callback):
-		def on_epoch_end(self, epoch, logs=None):
-			print('\nLearning rate for epoch {} is {}'.format(epoch + 1,
-		                                                  model.optimizer.lr.numpy()))
+	tf_config = {
+		'cluster': {
+			'worker': ['localhost:12345', 'localhost:23456']
+		},
+		'task': {'type': 'worker', 'index': worker_index}
+	}
+	os.environ['TF_CONFIG'] = json.dumps(tf_config)
+	strategy = tf.distribute.experimental.MultiWorkerMirroredStrategy(
+		communication=tf.distribute.experimental.CollectiveCommunication.AUTO
+	)
 
+	BATCH_SIZE_PER_REPLICA = 64
+	BATCH_SIZE = BATCH_SIZE_PER_REPLICA * strategy.num_replicas_in_sync
+	dataset = load_data(BATCH_SIZE)
+
+	options = tf.data.Options()
+	options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.OFF 
+	dataset_no_auto_shard = dataset.with_options(options)
+
+	task_type = strategy.cluster_resolver.task_type if strategy.cluster_resolver else None
+	task_id = strategy.cluster_resolver.task_id if strategy.cluster_resolver else None
+
+        # Tensorboard logging
+	log_dir = os.path.join(experiment_dir, 'log')
+	write_log_dir = write_dir(log_dir, task_type, task_id)
+	if os.path.exists(write_log_dir):
+		tf.io.gfile.rmtree(write_log_dir)
 	callbacks = [
-		tf.keras.callbacks.TensorBoard(log_dir=os.path.join(experiment_dir, 'logs')),
-		tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_prefix,
-		                                   save_weights_only=True),
-		tf.keras.callbacks.LearningRateScheduler(decay),
-		PrintLR()
+		tf.keras.callbacks.TensorBoard(log_dir=write_log_dir,
+		                               histogram_freq=0),
 	]
 
-	model.fit(train_dataset, epochs=12, callbacks=callbacks)
+	with strategy.scope():
+		model = build_and_compile_model()
 
-	model.load_weights(tf.train.latest_checkpoint(checkpoint_dir))
-	eval_loss, eval_acc = model.evaluate(eval_dataset)
-	print('Eval loss: {}, Eval Accuracy: {}'.format(eval_loss, eval_acc))
+        # Checkpointing
+	checkpoint_dir = os.path.join(experiment_dir, 'ckpt')
+	checkpoint = tf.train.Checkpoint(model=model)
+	write_checkpoint_dir = write_dir(checkpoint_dir, task_type, task_id)
+	checkpoint_manager = tf.train.CheckpointManager(checkpoint, directory=write_checkpoint_dir, max_to_keep=1)
+	def checkpoint_save():
+		checkpoint_manager.save()
+		if not _is_chief(task_type, task_id):
+			tf.io.gfile.rmtree(write_checkpoint_dir)
+	def checkpoint_restore():
+		latest_checkpoint = tf.train.latest_checkpoint(checkpoint_dir)
+		checkpoint.restore(latest_checkpoint)
 
-	path = os.path.join(experiment_dir, 'saved_model')
-	model.save(path, save_format='tf')
+	# Training
+	with strategy.scope():
+		checkpoint_restore()
+	training = model.fit(dataset_no_auto_shard, epochs=5, steps_per_epoch=200, callbacks=callbacks, verbose=0)
+	checkpoint_save()

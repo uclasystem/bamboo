@@ -57,7 +57,7 @@ def experiment_add_arguments(parser):
 	tutorial_mnist_parser = subparsers.add_parser('tutorial-mnist', help=None)
 	tutorial_mnist_parser.set_defaults(command=tutorial_mnist_command)
 
-	tutorial_mnist_parser.add_argument('--host', action='store_true')
+	tutorial_mnist_parser.add_argument('--worker-index', type=int, default=0)
 
 def parse(args):
 	parser = argparse.ArgumentParser(prog='project_pactum',
