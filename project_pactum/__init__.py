@@ -13,7 +13,7 @@ def main(args):
 
 	options = parse(args)
 
-	setup()
+	setup(options)
 
 	if 'command' in options:
 		options.command(options)

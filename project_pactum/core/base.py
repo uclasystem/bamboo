@@ -22,11 +22,24 @@ def core_add_arguments(parser):
 	                    version='Project Pactum {}'.format(VERSION))
 
 def aws_add_arguments(parser):
-	from project_pactum.aws.command import test_command
 	subparsers = parser.add_subparsers(metavar='command')
 
+	from project_pactum.aws.command import test_command
 	test_parser = subparsers.add_parser('test', help=None)
 	test_parser.set_defaults(command=test_command)
+
+	from project_pactum.aws.command import add_command
+	add_parser = subparsers.add_parser('add', help=None)
+	add_parser.set_defaults(command=add_command)
+
+	from project_pactum.aws.command import list_command
+	list_parser = subparsers.add_parser('list', help=None)
+	list_parser.set_defaults(command=list_command)
+
+	from project_pactum.aws.command import terminate_command
+	terminate_parser = subparsers.add_parser('terminate', help=None)
+	terminate_parser.set_defaults(command=terminate_command)
+	terminate_parser.add_argument('instance_ids', metavar='instance-id', nargs='+')
 
 def check_add_arguments(parser):
 	subparsers = parser.add_subparsers(metavar='command')
@@ -64,7 +77,7 @@ def parse(args):
 	                                 description='Project Pactum')
 	core_add_arguments(parser)
 
-	subparsers = parser.add_subparsers(metavar='command')
+	subparsers = parser.add_subparsers(metavar='command', dest='command_name')
 
 	aws_parser = subparsers.add_parser('aws', help=None)
 	aws_add_arguments(aws_parser)
@@ -89,10 +102,15 @@ def setup_logging():
 	logging.getLogger('botocore.client').setLevel(logging.WARNING)
 	logging.getLogger('botocore.credentials').setLevel(logging.WARNING)
 	logging.getLogger('botocore.endpoint').setLevel(logging.WARNING)
+	logging.getLogger('botocore.handlers').setLevel(logging.WARNING)
 	logging.getLogger('botocore.hooks').setLevel(logging.WARNING)
 	logging.getLogger('botocore.loaders').setLevel(logging.WARNING)
 	logging.getLogger('botocore.parsers').setLevel(logging.WARNING)
 	logging.getLogger('botocore.retryhandler').setLevel(logging.WARNING)
+	logging.getLogger('boto3.resources.action').setLevel(logging.WARNING)
+	logging.getLogger('boto3.resources.collection').setLevel(logging.WARNING)
+	logging.getLogger('boto3.resources.factory').setLevel(logging.WARNING)
+	logging.getLogger('boto3.resources.model').setLevel(logging.WARNING)
 
 	logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 
@@ -108,12 +126,16 @@ def setup_tensorflow():
 	for gpu in gpus:
 		tf.config.experimental.set_memory_growth(gpu, True)
 
-def setup():
+def setup(options):
 	from project_pactum.dataset.base import setup_datasets
 
 	setup_logging()
-	setup_datasets()
-	setup_tensorflow()
+
+	if options.command_name == 'dataset':
+		setup_datasets()
+
+	if options.command_name == 'experiment':
+		setup_tensorflow()
 
 @functools.wraps(subprocess.run)
 def run(args, **kwargs):
