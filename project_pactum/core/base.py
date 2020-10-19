@@ -85,11 +85,19 @@ def setup_logging():
 	stream_handler.setFormatter(ProjectPactumFormatter())
 	logging.basicConfig(level=logging.DEBUG, handlers=[stream_handler])
 
-	logging.getLogger('botocore.parsers').addHandler(logging.NullHandler())
-	logging.getLogger('botocore.parsers').propagate = False
+	logging.getLogger('botocore.auth').setLevel(logging.WARNING)
+	logging.getLogger('botocore.client').setLevel(logging.WARNING)
+	logging.getLogger('botocore.credentials').setLevel(logging.WARNING)
+	logging.getLogger('botocore.endpoint').setLevel(logging.WARNING)
+	logging.getLogger('botocore.hooks').setLevel(logging.WARNING)
+	logging.getLogger('botocore.loaders').setLevel(logging.WARNING)
+	logging.getLogger('botocore.parsers').setLevel(logging.WARNING)
+	logging.getLogger('botocore.retryhandler').setLevel(logging.WARNING)
 
-	logging.getLogger('absl').setLevel(logging.ERROR)
-	logging.getLogger('tensorflow').setLevel(logging.ERROR)
+	logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
+
+	logging.getLogger('absl').setLevel(logging.WARNING)
+	logging.getLogger('tensorflow').setLevel(logging.WARNING)
 
 	import os
 	os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
