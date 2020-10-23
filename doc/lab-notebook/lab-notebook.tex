@@ -10,6 +10,7 @@
 \usepackage{indentfirst}
 \usepackage{pgfplots}
 \usepackage{ragged2e}
+\usepackage{standalone}
 \usepackage{tikz}
 \usepackage{varioref}
 
@@ -42,6 +43,8 @@
 \definecolor{solarizedCyan}{RGB}{42, 161, 152}
 \definecolor{solarizedGreen}{RGB}{133, 153, 0}
 
+\usetikzlibrary{datavisualization}
+
 \title{{\Huge \sffamily \project{}}
        \\
        {\sffamily Lab Notebook}
@@ -65,6 +68,8 @@
 \tableofcontents
 
 \input{chapters/preliminary.tex}
+
+\input{chapters/aws.tex}
 
 \input{chapters/related-work.tex}
 

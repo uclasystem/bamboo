@@ -1,0 +1,36 @@
+\documentclass[crop,tikz]{standalone}
+\usetikzlibrary{datavisualization}
+\begin{document}
+\begin{tikzpicture}
+  \datavisualization[
+    scientific axes=clean,
+    x axis={
+      include value=120,
+      ticks={step=20},
+      label={minutes after 8:00 AM EST (2020-10-22)},
+    },
+    y axis={include value=0, ticks=many, label={p2.xlarge instances}},
+    visualize as line
+  ]
+  data {
+    x, y
+    0, 16
+    32, 16
+    32, 15
+    34, 15
+    34, 14
+    42, 14
+    42, 12
+    44, 12
+    44, 11
+    58, 11
+    58, 10
+    88, 10
+    88, 8
+    112, 8
+    112, 1
+    118, 1
+    118, 0
+  };
+\end{tikzpicture}
+\end{document}
