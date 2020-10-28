@@ -2,6 +2,10 @@ def add_command(options):
 	from .instance import add_instance
 	add_instance()
 
+def cloudwatch_command(options):
+	from .cloudwatch import test
+	test()
+
 def list_command(options):
 	from .instance import list_instances
 	list_instances()

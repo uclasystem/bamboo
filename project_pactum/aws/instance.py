@@ -1,6 +1,8 @@
 import boto3
 
-IMAGE_ID = 'ami-0660425fc55822178'
+import re
+
+IMAGE_ID = 'ami-09696628562d9969d'
 
 def get_instances():
 	instances = []
@@ -27,23 +29,58 @@ def get_public_ips():
 def get_instance_ids():
 	return [x['InstanceId'] for x in get_instances()]
 
+# An error occurred (InsufficientInstanceCapacity) when calling the RunInstances operation (reached max retries: 4): We currently do not have sufficient p2.16xlarge capacity in the Availability Zone you requested (us-east-1d). Our system will be working on provisioning additional capacity. You can currently get p2.16xlarge capacity by not specifying an Availability Zone in your request or choosing us-east-1a, us-east-1b, us-east-1c, us-east-1e.
+
+# An error occurred (InsufficientInstanceCapacity) when calling the RunInstances operation (reached max retries: 4): There is no Spot capacity available that matches your request.
+
+class InsufficientInstanceCapacity(Exception):
+
+	def __init__(self, available_zones, message):
+		self.available_zones = available_zones
+		self.message = message
+
+def parse_run_instances_exception(s):
+	m = re.match(r'An error occurred \(([^)]+)\) when calling the RunInstances operation \(reached max retries: (\d+)\): ', s)
+	assert m.group(1) == 'InsufficientInstanceCapacity'
+	message = s[len(m.group(0)):]
+
+	m = re.match(r'We currently do not have sufficient ([a-z0-9.]+) capacity in the Availability Zone you requested \(([a-z0-9-]+)\). Our system will be working on provisioning additional capacity. You can currently get ([a-z0-9.]+) capacity by not specifying an Availability Zone in your request or choosing ([^.]+)\.', message)
+	if not m:
+		raise InsufficientInstanceCapacity([], message)
+	assert m.group(1) == m.group(3)
+	available_zones = m.group(4).split(', ')
+	raise InsufficientInstanceCapacity(available_zones, message)
+
+def create_instance(availability_zone, instance_type):
+	ec2 = boto3.resource('ec2')
+	instances = []
+	try:
+		response = ec2.create_instances(
+			ImageId=IMAGE_ID,
+			InstanceType=instance_type,
+			MinCount=1,
+			MaxCount=1,
+			Placement={
+				'AvailabilityZone': availability_zone,
+			},
+			InstanceMarketOptions={
+				'MarketType': 'spot',
+				'SpotOptions': {
+					'SpotInstanceType': 'one-time',
+					'InstanceInterruptionBehavior': 'terminate',
+				}
+			},
+			SecurityGroupIds=['sg-0a7c9ebe69b2b770b'],
+		)
+		instances = response
+	except Exception as e:
+		parse_run_instances_exception(str(e))
+	return instances
+
 def add_instance():
 	ec2 = boto3.resource('ec2')
-	response = ec2.create_instances(
-		ImageId=IMAGE_ID,
-		InstanceType='t2.micro',
-		MinCount=1,
-		MaxCount=1,
-		InstanceMarketOptions={
-			'MarketType': 'spot',
-			'SpotOptions': {
-				'SpotInstanceType': 'one-time',
-				'InstanceInterruptionBehavior': 'terminate',
-			}
-		},
-		SecurityGroupIds=['sg-0a7c9ebe69b2b770b'],
-	)
-	for instance in response:
+	instances = create_instance('us-east-1d', 'p2.xlarge')
+	for instance in instances:
 		print(instance.id)
 
 def list_instances():
