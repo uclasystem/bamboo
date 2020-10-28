@@ -32,6 +32,10 @@ def aws_add_arguments(parser):
 	add_parser = subparsers.add_parser('add', help=None)
 	add_parser.set_defaults(command=add_command)
 
+	from project_pactum.aws.command import cloudwatch_command
+	cloudwatch_parser = subparsers.add_parser('cloudwatch', help=None)
+	cloudwatch_parser.set_defaults(command=cloudwatch_command)
+
 	from project_pactum.aws.command import list_command
 	list_parser = subparsers.add_parser('list', help=None)
 	list_parser.set_defaults(command=list_command)
@@ -64,12 +68,19 @@ def dataset_add_arguments(parser):
 	remove_parser.add_argument('datasets', nargs='+')
 
 def experiment_add_arguments(parser):
-	from project_pactum.experiment.command import tutorial_mnist_command
 	subparsers = parser.add_subparsers(metavar='command')
 
+	from project_pactum.experiment.command import aws_availability_command
+	aws_availability_parser = subparsers.add_parser('aws-availability', help=None)
+	aws_availability_parser.set_defaults(command=aws_availability_command)
+
+	from project_pactum.experiment.command import test_command
+	test_parser = subparsers.add_parser('test', help=None)
+	test_parser.set_defaults(command=test_command)
+
+	from project_pactum.experiment.command import tutorial_mnist_command
 	tutorial_mnist_parser = subparsers.add_parser('tutorial-mnist', help=None)
 	tutorial_mnist_parser.set_defaults(command=tutorial_mnist_command)
-
 	tutorial_mnist_parser.add_argument('--worker-index', type=int, default=0)
 
 def parse(args):
@@ -127,15 +138,11 @@ def setup_tensorflow():
 		tf.config.experimental.set_memory_growth(gpu, True)
 
 def setup(options):
-	from project_pactum.dataset.base import setup_datasets
-
 	setup_logging()
 
 	if options.command_name == 'dataset':
+		from project_pactum.dataset.base import setup_datasets
 		setup_datasets()
-
-	if options.command_name == 'experiment':
-		setup_tensorflow()
 
 @functools.wraps(subprocess.run)
 def run(args, **kwargs):

@@ -50,6 +50,8 @@ def build_and_compile_model():
 	return model
 
 def run(worker_index):
+	project_pactum.core.base.setup_tensorflow()
+
 	experiment_dir = os.path.join(project_pactum.BASE_DIR, 'experiment', 'tutorial-mnist')
 
 	tf_config = {
