@@ -1,0 +1,60 @@
+\documentclass[aspectratio=169]{beamer}
+
+\usepackage{bashful}
+\usepackage{fontspec}
+\usepackage{listings}
+\usepackage{tikz}
+
+\usetikzlibrary{calc}
+\usetikzlibrary{positioning}
+
+\definecolor{solarizedRed}{RGB}{220, 50, 47}
+\definecolor{solarizedBlue}{RGB}{38, 139, 210}
+\definecolor{solarizedGreen}{RGB}{133, 153, 0}
+\definecolor{solarizedPurple}{RGB}{108, 113, 196}
+
+\setbeamercolor{title}{fg=solarizedBlue}
+\setbeamercolor{frametitle}{fg=solarizedBlue}
+\setbeamercolor{structure}{fg=solarizedBlue}
+
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{headline}{}
+\setbeamertemplate{footline}{}
+\setbeamertemplate{itemize items}[circle]
+
+\setbeamertemplate{footline}{
+  \begin{tikzpicture}[remember picture,
+                      overlay,
+                      shift={(current page.south west)}]
+    \node [black!50, inner sep=2mm, anchor=south east]
+          at (current page.south east) {\large \insertframenumber};
+  \end{tikzpicture}
+}
+
+\setsansfont{Overpass}[Scale=MatchLowercase]
+\setmonofont{Overpass Mono}[Scale=MatchLowercase]
+
+\lstset{
+  basicstyle=\ttfamily,
+  language=C,
+  escapeinside={(*@}{@*)},
+  commentstyle={\color{black!35}},
+}
+
+\setbeamertemplate{title page}
+{
+  \begin{tikzpicture}[remember picture,
+                      overlay,
+                      shift={(current page.south west)}]
+    \node (title) [inner sep=0, scale=2, align=left]
+          at (\paperwidth / 2, \paperheight * 2 / 3)
+          {\bfseries \usebeamerfont{title}\usebeamercolor[fg]{title}Projact Pactum\\
+           \usebeamerfont{title}\usebeamercolor[fg]{title}\inserttitle};
+    \node (author) [scale=1.5] at (\paperwidth / 2, \paperheight / 3)
+          {\insertauthor};
+    \node [anchor=south east, inner sep=2mm] at (\paperwidth, 0)
+          {\texttt{\splice{../../../version.sh}}};
+    \node [below=of title.west, anchor=north west, align=left]
+          {\insertdate};
+  \end{tikzpicture}
+}
