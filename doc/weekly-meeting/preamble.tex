@@ -9,6 +9,7 @@
 \usetikzlibrary{positioning}
 
 \definecolor{solarizedRed}{RGB}{220, 50, 47}
+\definecolor{solarizedYellow}{RGB}{181, 137, 0}
 \definecolor{solarizedBlue}{RGB}{38, 139, 210}
 \definecolor{solarizedGreen}{RGB}{133, 153, 0}
 \definecolor{solarizedPurple}{RGB}{108, 113, 196}
@@ -53,8 +54,8 @@
     \node (author) [scale=1.5] at (\paperwidth / 2, \paperheight / 3)
           {\insertauthor};
     \node [anchor=south east, inner sep=2mm] at (\paperwidth, 0)
-          {\texttt{\splice{../../../version.sh}}};
+          {\color{solarizedYellow} \texttt{\splice{../../../version.sh}}};
     \node [below=of title.west, anchor=north west, align=left]
-          {\insertdate};
+          {\color{solarizedYellow} \insertdate};
   \end{tikzpicture}
 }
