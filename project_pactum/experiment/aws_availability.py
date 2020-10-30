@@ -10,6 +10,7 @@ EXPERIMENT_DIR = os.path.join(project_pactum.BASE_DIR, 'experiment', 'aws-availa
 HISTORY_PATH = os.path.join(EXPERIMENT_DIR, 'history.csv')
 SECONDS_PER_MINUTE = 60
 SECONDS_PER_HOUR = SECONDS_PER_MINUTE * 60
+SECONDS_PER_DAY = SECONDS_PER_HOUR * 24
 FIGURES_DIR = os.path.join(project_pactum.BASE_DIR, 'doc', 'figures')
 
 def analyze_daily_merge(old_data, new_data):
@@ -47,6 +48,10 @@ def analyze_daily_from_reader(reader):
 	data = []
 	new_data = []
 	dates = []
+	available_global_start = None
+	available_global_end = None
+	available_start = None
+	available_durations = []
 	for row in reader:
 		instance_type = row[1]
 		if instance_type != 'p2.xlarge':
@@ -96,13 +101,30 @@ def analyze_daily_from_reader(reader):
 			if previous_allowed:
 				new_data.append((time_of_day, 1))
 				new_data.append((time_of_day, 0))
+				if available_start:
+					delta = d - available_start
+					assert delta.days == 0
+					available_durations.append(delta.seconds)
+					available_global_end = d
 			else:
 				new_data.append((time_of_day, 0))
 				new_data.append((time_of_day, 1))
+				available_start = d
+				if not available_global_start:
+					available_global_start = d
 
 		previous_date = date
 		previous_time_of_day = time_of_day
 		previous_allowed = allowed
+		previous_d = d
+	from statistics import mean, median, stdev
+	print('Mean:', mean(available_durations))
+	print('  Standard deviation:', stdev(available_durations))
+	print('Median:', median(available_durations))
+	print('Min:', min(available_durations))
+	print('Max:', max(available_durations))
+	total_time_diff =  available_global_end - available_global_start
+	print('Uptime: {:.2%}'.format(sum(available_durations) / (total_time_diff.days * SECONDS_PER_DAY + total_time_diff.seconds)))
 	return (dates, data)
 
 def analyze_daily_write(dates, data):
