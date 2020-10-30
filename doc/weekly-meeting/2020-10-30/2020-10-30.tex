@@ -13,21 +13,6 @@
   \setcounter{framenumber}{0}
 
   \begin{frame}
-    \frametitle{Scope}
-
-    \begin{itemize}
-      \item Small to Medium Models (fit on a single GPU)
-      \item Data parallelism
-      \item Homogeneous GPUs
-      \item Synchronous operations
-    \end{itemize}
-  \end{frame}
-
-  \begin{frame}
-    \frametitle{Current Design}
-  \end{frame}
-
-  \begin{frame}
     \frametitle{Instance Types}
 
     \texttt{p3} and \texttt{g3} instances showed better communication numbers
@@ -70,6 +55,106 @@
     \vspace{1em}
 
     Our design needs to include restarting from no spot instances
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Current Design}
+
+    \begin{columns}
+      \column{0.25\textwidth}
+      \begin{flushright}
+        \begin{tikzpicture}[
+          auto,
+          node distance=1cm,
+          server/.style={
+            thick,
+            circle,
+            draw,
+            font=\sffamily\large},
+        ]
+          \node[server] (1) {$S_0$};
+          \node[server] (2) [below=of 1] {$S_i$};
+          \path (1) -- node[auto=false] {\vdots} (2);
+        \end{tikzpicture}
+      \end{flushright}
+      \column{0.75\textwidth}
+      \begin{itemize}
+        \item One global configuration
+        \item Manual checkpointing
+        \item Manual restarts
+      \end{itemize}
+    \end{columns}
+
+    \vspace{3em}
+
+    \hspace{7em} Note that Horovod will start computation on each server, $S$
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Our Starter Design}
+
+    \begin{columns}
+      \column{0.5\textwidth}
+      \begin{flushright}
+        \begin{tikzpicture}[
+          ->,
+          >=stealth',
+          shorten >=1pt,
+          auto,
+          node distance=1cm,
+          server/.style={
+            thick,
+            circle,
+            draw,
+            font=\sffamily\large},
+        ]
+          \node[draw] (c) {Coordinator};
+          \node[server] (1) [right=of c, yshift=2.5em] {$S_0$};
+          \node[server] (2) [below=of 1] {$S_i$};
+          \path (1) -- node[auto=false]{\vdots} (2);
+          \path (c) edge (1);
+          \path (c) edge (2);
+        \end{tikzpicture}
+      \end{flushright}
+      \column{0.5\textwidth}
+      \begin{itemize}
+        \item Coordinator handles configuration
+        \item Manual checkpointing
+        \item Automatic restarts
+      \end{itemize}
+    \end{columns}
+
+    \vspace{3em}
+
+    \hspace{7em} Initially we'll be able to test a simple approach and evaluate
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Scope}
+
+    \begin{itemize}
+      \item Small to Medium Models (fit on a single GPU)
+      \item Data parallelism
+      \item Homogeneous GPUs
+      \item Synchronous operations
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Experiment Design}
+
+    Test end-to-end time to a certain accuracy (approx. 12 hours)
+
+    \begin{itemize}
+      \item Test the best case scenario (no preemptions)
+      \item Compare against manual preemptions with checkpointing
+
+            (using our known AWS patterns)
+    \end{itemize}
+
+    \vspace{2em}
+
+    The difference in end-to-end time should give us a good idea of feasibility
   \end{frame}
 
   \begin{frame}
