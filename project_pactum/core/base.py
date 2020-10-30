@@ -73,6 +73,8 @@ def experiment_add_arguments(parser):
 	from project_pactum.experiment.command import aws_availability_command
 	aws_availability_parser = subparsers.add_parser('aws-availability', help=None)
 	aws_availability_parser.set_defaults(command=aws_availability_command)
+	aws_availability_parser.add_argument('--skip-monitor', action='store_true')
+	aws_availability_parser.add_argument('--analyze-daily', action='store_true')
 
 	from project_pactum.experiment.command import test_command
 	test_parser = subparsers.add_parser('test', help=None)
