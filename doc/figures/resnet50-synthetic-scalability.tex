@@ -1,0 +1,58 @@
+\documentclass[crop,convert,tikz]{standalone}
+\usetikzlibrary{datavisualization}
+
+
+
+\begin{document}
+%\definecolor{solarizedRed}{RGB}{220, 50, 47}
+%\definecolor{solarizedOrange}{RGB}{203, 75, 22}
+%\definecolor{solarizedYellow}{RGB}{181, 137, 0}
+%\definecolor{solarizedBlue}{RGB}{38, 139, 210}
+%\definecolor{solarizedGreen}{RGB}{133, 153, 0}
+%\definecolor{solarizedViolet}{RGB}{108, 113, 196}
+%\definecolor{solarizedMagenta}{RGB}{211, 54, 130}
+%\definecolor{solarizedCyan}{RGB}{42, 161, 152}
+
+
+\pgfdvdeclarestylesheet{custom colors}
+{
+  default style/.style={visualizer color=black},
+  1/.style={visualizer color=solarizedOrange},
+  2/.style={visualizer color=solarizedBlue}
+}
+
+\begin{tikzpicture}
+  \datavisualization[
+    scientific axes=clean,
+    x axis={
+      include value=0.8,
+      include value=8.2,
+      ticks={step=1},
+      label={\#GPUs},
+    },
+    y axis={
+      include value=300,
+      include value=2500,
+      ticks={step=400},
+      label={Throughput (imgs/sec)}},
+    visualize as line/.list={a, b},
+    style sheet=custom colors,
+    a={label in legend={text=Clustered}},
+    b={label in legend={text=Spread}}
+  ]
+  data [set=a]{
+    x, y
+    1, 343
+    2, 616
+    4, 1248
+    8, 2465
+  }
+  data [set=b]{
+    x, y
+    1, 343
+    2, 452
+    4, 700
+    8, 1200
+  };
+\end{tikzpicture}
+\end{document}

@@ -1,7 +1,7 @@
 \input{../preamble.tex}
 
 \title{Weekly Meeting}
-\date{Ocotober 30, 2020}
+\date{November 6, 2020}
 \author{Jon Eyolfson \and John Thorpe}
 
 \begin{document}
@@ -15,15 +15,32 @@
   \begin{frame}
     \frametitle{Instance Types}
 
-    \texttt{p3} and \texttt{g3} instances showed better communication numbers
+    Lack of scalability difference on ResNet32 using \texttt{p2} instances (last week)
+    \begin{itemize}
+      \item K80 GPUs don't support NCCL optimizations
+      \begin{itemize}
+        \item CPU communication performs \emph{better} than NCCL on K80s
+      \end{itemize}
+      \item NCCL perf-debug tests show poor throughput
+    \end{itemize}
 
-    \structure{TODO: John fill this in.}
+    \vspace{3em}
+    NCCL throughput increase significant on \texttt{p3} instance (V100 GPU)
+    \begin{itemize}
+      \item Differences need to be accounted for if system heterogeneous
+    \end{itemize}
+
   \end{frame}
 
   \begin{frame}
     \frametitle{ResNet 50 Scalability}
 
-    \structure{TODO: John fill this in.}
+    \begin{center}
+      \includestandalone[scale=1.25]{../../figures/resnet50-synthetic-scalability}
+    \end{center}
+
+    Scalability of the ResNet50 model using \texttt{p3 instances (V100s)}
+
   \end{frame}
 
   \begin{frame}
