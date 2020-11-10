@@ -9,3 +9,35 @@ In 2016 they were 70\% cheaper with Google, and 90\% cheaper with Amazon than
 dedicated servers.
 
 Add in \href{https://github.com/google-research/bert}{BERT} models.
+
+\section{Synthetic Scalability Tests}
+For these tests, I ran the standard Horovod synthetic benchmakr tests for
+the ResNet50 model.
+This benchmark runs on a synthetic image dataset to measure the throughput in
+images per second given a particular configuration.
+I ran two separate versions of the scalability experiments, a \texttt{Clustered}
+version in which multiple GPUs are collocated on a single instance (such as a
+p3.8xlarge) and a \texttt{Spread} version in which each instance had a single GPU and
+were spread across multiple Availability Zones.
+Each test used the p3 instance type which are equipped with V100 GPUs.
+
+\begin{center}
+\includestandalone[scale=1.25]{../figures/resnet50-synthetic-scalability}
+\end{center}
+
+\subsection{Experimental Results}
+\begin{itemize}
+    \item The obvious (and expected) takeaway is that the clustered throughput
+        scaled significantly better.
+    \begin{itemize}
+        \item \texttt{Clustered} Avg Scaling Factor: 90\%
+        \item \texttt{Spread} Avg Scaling Factor: 50\%
+    \end{itemize}
+    \item Need to consider tradeoff of higher availability vs lower throughput
+    \begin{itemize}
+        \item If we have a single machine with many GPUs, we get better perf
+            but getting preempted means losing all work
+    \end{itemize}
+    
+        
+\end{itemize}
