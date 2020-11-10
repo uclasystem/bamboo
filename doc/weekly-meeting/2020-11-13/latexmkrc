@@ -1,0 +1,6 @@
+$clean_ext = 'bbl exitCode nav run.xml sh snm stderr stdout synctex';
+$pdf_mode = 5;
+$postscript_mode = $dvi_mode = 0;
+$xelatex = 'xelatex -no-pdf -shell-escape -synctex=15 %O %S';
+
+@default_files = ('2020-11-13.tex');
