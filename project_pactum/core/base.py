@@ -19,7 +19,7 @@ class ProjectPactumFormatter(logging.Formatter):
 def core_add_arguments(parser):
 	from project_pactum import VERSION
 	parser.add_argument('--version', action='version',
-	                    version='Project Pactum {}'.format(VERSION))
+						version='Project Pactum {}'.format(VERSION))
 
 def aws_add_arguments(parser):
 	subparsers = parser.add_subparsers(metavar='command')
@@ -85,9 +85,18 @@ def experiment_add_arguments(parser):
 	tutorial_mnist_parser.set_defaults(command=tutorial_mnist_command)
 	tutorial_mnist_parser.add_argument('--worker-index', type=int, default=0)
 
+	from project_pactum.experiment.command import imagenet_pretrain_command
+	imagenet_parser = subparsers.add_parser('imagenet-pretrain', help=None)
+	imagenet_parser.set_defaults(command=imagenet_pretrain_command)
+	imagenet_parser.add_argument('--cluster-size', type=int, default=1)
+	imagenet_parser.add_argument('--instance-type', type=str, default='p2.xlarge')
+	imagenet_parser.add_argument('--ngpus', type=int, default=1)
+	imagenet_parser.add_argument('--az', type=str, default=None)
+	imagenet_parser.add_argument('--epochs', type=int, default=1)
+
 def parse(args):
 	parser = argparse.ArgumentParser(prog='project_pactum',
-	                                 description='Project Pactum')
+									 description='Project Pactum')
 	core_add_arguments(parser)
 
 	subparsers = parser.add_subparsers(metavar='command', dest='command_name')
