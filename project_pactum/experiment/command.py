@@ -12,3 +12,7 @@ def tutorial_mnist_command(options):
 def test_command(options):
 	from .test import run
 	run()
+
+def imagenet_pretrain_command(options):
+    from .imagenet_pretrain import run
+    run(options)

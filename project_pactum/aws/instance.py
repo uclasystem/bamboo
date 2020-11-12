@@ -51,15 +51,16 @@ def parse_run_instances_exception(s):
 	available_zones = m.group(4).split(', ')
 	raise InsufficientInstanceCapacity(available_zones, message)
 
-def create_instance(availability_zone, instance_type):
+def create_instance(num_instances, availability_zone, instance_type,
+                    image_id=IMAGE_ID):
 	ec2 = boto3.resource('ec2')
 	instances = []
 	try:
 		response = ec2.create_instances(
-			ImageId=IMAGE_ID,
+			ImageId=image_id,
 			InstanceType=instance_type,
-			MinCount=1,
-			MaxCount=1,
+			MinCount=num_instances,
+			MaxCount=num_instances,
 			Placement={
 				'AvailabilityZone': availability_zone,
 			},
@@ -71,6 +72,7 @@ def create_instance(availability_zone, instance_type):
 				}
 			},
 			SecurityGroupIds=['sg-0a7c9ebe69b2b770b'],
+            EbsOptimized=True
 		)
 		instances = response
 	except Exception as e:
