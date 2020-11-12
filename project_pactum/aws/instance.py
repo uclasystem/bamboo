@@ -51,29 +51,32 @@ def parse_run_instances_exception(s):
 	available_zones = m.group(4).split(', ')
 	raise InsufficientInstanceCapacity(available_zones, message)
 
-def create_instance(num_instances, availability_zone, instance_type,
-                    image_id=IMAGE_ID):
+def create_instance(num_instances, instance_type, availability_zone=None,
+					image_id=IMAGE_ID):
 	ec2 = boto3.resource('ec2')
 	instances = []
+	args = {
+		'ImageId': image_id,
+		'InstanceType': instance_type,
+		'MinCount': num_instances,
+		'MaxCount': num_instances,
+		'InstanceMarketOptions': {
+			'MarketType': 'spot',
+			'SpotOptions': {
+				'SpotInstanceType': 'one-time',
+				'InstanceInterruptionBehavior': 'terminate',
+			}
+		},
+		'SecurityGroupIds': ['sg-0a7c9ebe69b2b770b'],
+		'EbsOptimized': True
+	}
+
+	# Only specify the availability zone if specified in args
+	if availability_zone != None:
+		args['Placement'] = { 'AvailabilityZone': availability_zone }
+
 	try:
-		response = ec2.create_instances(
-			ImageId=image_id,
-			InstanceType=instance_type,
-			MinCount=num_instances,
-			MaxCount=num_instances,
-			Placement={
-				'AvailabilityZone': availability_zone,
-			},
-			InstanceMarketOptions={
-				'MarketType': 'spot',
-				'SpotOptions': {
-					'SpotInstanceType': 'one-time',
-					'InstanceInterruptionBehavior': 'terminate',
-				}
-			},
-			SecurityGroupIds=['sg-0a7c9ebe69b2b770b'],
-            EbsOptimized=True
-		)
+		response = ec2.create_instances(**args)
 		instances = response
 	except Exception as e:
 		parse_run_instances_exception(str(e))

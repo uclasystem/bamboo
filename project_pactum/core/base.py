@@ -88,11 +88,10 @@ def experiment_add_arguments(parser):
 	from project_pactum.experiment.command import imagenet_pretrain_command
 	imagenet_parser = subparsers.add_parser('imagenet-pretrain', help=None)
 	imagenet_parser.set_defaults(command=imagenet_pretrain_command)
-	imagenet_parser.add_argument('--model', type=str, default='ResNet50')
 	imagenet_parser.add_argument('--cluster-size', type=int, default=1)
 	imagenet_parser.add_argument('--instance-type', type=str, default='p2.xlarge')
 	imagenet_parser.add_argument('--ngpus', type=int, default=1)
-	imagenet_parser.add_argument('--az', type=str, default='us-east-1d')
+	imagenet_parser.add_argument('--az', type=str, default=None)
 	imagenet_parser.add_argument('--epochs', type=int, default=1)
 
 def parse(args):
