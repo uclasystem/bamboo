@@ -93,6 +93,7 @@ def experiment_add_arguments(parser):
 	imagenet_parser.add_argument('--instance-type', type=str, default='p2.xlarge')
 	imagenet_parser.add_argument('--ngpus', type=int, default=1)
 	imagenet_parser.add_argument('--az', type=str, default='us-east-1d')
+	imagenet_parser.add_argument('--epochs', type=int, default=1)
 
 def parse(args):
 	parser = argparse.ArgumentParser(prog='project_pactum',

@@ -131,7 +131,7 @@ def run(options):
         horovod_cluster_config = ','.join([':'.join([inst.private_ip, str(options.ngpus)]) for inst in instances])
         horovod_run_cmd = 'cd horovod-examples/pytorch; . .venv/bin/activate; '
         horovod_run_cmd += 'horovodrun -np ' + str(np) + ' -H ' + horovod_cluster_config
-        horovod_run_cmd += ' python pytorch_imagenet_resnet50.py'
+        horovod_run_cmd += ' python pytorch_imagenet_resnet50.py --epochs ' + str(options.epochs)
         print("RUN CMD:", horovod_run_cmd)
         leader = instances[0]
         print("PUB IP:", leader.public_ip)
