@@ -17,7 +17,7 @@ class Instance:
     """
     def __init__(self, inst_id, inst_type=None, placement=None,
                  private_ip=None, public_ip=None,
-                 username='project-pactum', ssh_key='~/.ssh/pactum-key_rsa'):
+                 username='project-pactum', ssh_key='~/.ssh/project-pactum'):
         self.id = inst_id
         self.type = inst_type
         self.placement = placement
