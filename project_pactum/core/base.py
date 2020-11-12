@@ -110,6 +110,11 @@ def parse(args):
 	dataset_parser = subparsers.add_parser('dataset', help=None)
 	dataset_add_arguments(dataset_parser)
 
+	import project_pactum.daemon.command
+	daemon_parser = subparsers.add_parser('daemon', help=None)
+	daemon_parser.set_defaults(command=project_pactum.daemon.command.main_command)
+	daemon_parser.add_argument('--debug', action='store_true')
+
 	experiment_parser = subparsers.add_parser('experiment', help=None)
 	experiment_add_arguments(experiment_parser)
 
@@ -129,12 +134,15 @@ def setup_logging():
 	logging.getLogger('botocore.loaders').setLevel(logging.WARNING)
 	logging.getLogger('botocore.parsers').setLevel(logging.WARNING)
 	logging.getLogger('botocore.retryhandler').setLevel(logging.WARNING)
+	logging.getLogger('botocore.utils').setLevel(logging.WARNING)
 	logging.getLogger('boto3.resources.action').setLevel(logging.WARNING)
 	logging.getLogger('boto3.resources.collection').setLevel(logging.WARNING)
 	logging.getLogger('boto3.resources.factory').setLevel(logging.WARNING)
 	logging.getLogger('boto3.resources.model').setLevel(logging.WARNING)
 
 	logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
+
+	logging.getLogger('PidFile').setLevel(logging.WARNING)
 
 	logging.getLogger('absl').setLevel(logging.WARNING)
 	logging.getLogger('tensorflow').setLevel(logging.WARNING)
