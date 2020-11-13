@@ -67,6 +67,17 @@ def dataset_add_arguments(parser):
 	remove_parser.set_defaults(command=remove_command)
 	remove_parser.add_argument('datasets', nargs='+')
 
+def daemon_add_arguments(parser):
+	from project_pactum.daemon.command import main_command, test_command
+
+	parser.set_defaults(command=main_command)
+	parser.add_argument('--debug', action='store_true')
+
+	subparsers = parser.add_subparsers(metavar='command')
+
+	test_parser = subparsers.add_parser('test', help=None)
+	test_parser.set_defaults(command=test_command)
+
 def experiment_add_arguments(parser):
 	subparsers = parser.add_subparsers(metavar='command')
 
@@ -110,10 +121,8 @@ def parse(args):
 	dataset_parser = subparsers.add_parser('dataset', help=None)
 	dataset_add_arguments(dataset_parser)
 
-	import project_pactum.daemon.command
 	daemon_parser = subparsers.add_parser('daemon', help=None)
-	daemon_parser.set_defaults(command=project_pactum.daemon.command.main_command)
-	daemon_parser.add_argument('--debug', action='store_true')
+	daemon_add_arguments(daemon_parser)
 
 	experiment_parser = subparsers.add_parser('experiment', help=None)
 	experiment_add_arguments(experiment_parser)
