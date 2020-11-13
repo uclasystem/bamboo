@@ -13,6 +13,69 @@
   \setcounter{framenumber}{0}
 
   \begin{frame}
+    \frametitle{Problems for Data Parallelism}
+
+    \begin{enumerate}
+      \item Lack of scaling heuristics
+      \vspace{2em}
+      \item Current frameworks assume static allocation
+      \vspace{2em}
+      \item How to scale batch size
+    \end{enumerate}
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{MLSys 2020 Paper Addresses Elasticity}
+
+    \begin{enumerate}
+      \item Lack of scaling heuristics
+
+            \structure{Autoscaling by collecting runtime statistics with
+                       heuristics}
+      \vspace{2em}
+      \item Current frameworks assume static allocation
+
+            \structure{Replace function that synchronizes gradients}
+      \vspace{2em}
+      \item How to scale batch size
+
+            \structure{Increase global batch size with fixed per device size
+                       (still an open problem)}
+    \end{enumerate}
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Unique Spot Instance Challenges}
+
+    \begin{itemize}
+      \item Limited availability
+
+            \structure{Upper limit of servers changes}
+      \vspace{2em}
+      \item May need to supplement with on-demand servers
+
+            \structure{Additional heuristics that take cost into account}
+      \vspace{2em}
+      \item Short lived instances
+
+            \structure{Their work can switch over in seconds}
+    \end{itemize}
+
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Current Direction}
+
+    \structure{Support Elasticity with Model Parallelism}
+    \vspace{2em}
+    \begin{itemize}
+      \item Model splitting needs to be quick and flexible
+      \vspace{2em}
+      \item Spot instances add a unique challenge since there's no stability
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}
     \frametitle{Current Progress}
 
     Automated experiments running
