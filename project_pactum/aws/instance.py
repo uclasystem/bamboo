@@ -84,7 +84,7 @@ def create_instance(num_instances, instance_type, availability_zone=None,
 
 def add_instance():
 	ec2 = boto3.resource('ec2')
-	instances = create_instance('us-east-1d', 'p2.xlarge')
+	instances = create_instance(1, 'p2.xlarge', 'us-east-1d')
 	for instance in instances:
 		print(instance.id)
 
