@@ -19,7 +19,8 @@ class ProjectPactumFormatter(logging.Formatter):
 def core_add_arguments(parser):
 	from project_pactum import VERSION
 	parser.add_argument('--version', action='version',
-						version='Project Pactum {}'.format(VERSION))
+	                    version='Project Pactum {}'.format(VERSION))
+	parser.add_argument('--daemonize', action='store_true')
 
 def aws_add_arguments(parser):
 	subparsers = parser.add_subparsers(metavar='command')
