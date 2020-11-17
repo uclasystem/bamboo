@@ -19,7 +19,7 @@ class ProjectPactumFormatter(logging.Formatter):
 def core_add_arguments(parser):
 	from project_pactum import VERSION
 	parser.add_argument('--version', action='version',
-	                    version='Project Pactum {}'.format(VERSION))
+						version='Project Pactum {}'.format(VERSION))
 	parser.add_argument('--daemonize', action='store_true')
 
 def aws_add_arguments(parser):
@@ -105,6 +105,8 @@ def experiment_add_arguments(parser):
 	imagenet_parser.add_argument('--ngpus', type=int, default=1)
 	imagenet_parser.add_argument('--az', type=str, default=None)
 	imagenet_parser.add_argument('--epochs', type=int, default=1)
+	imagenet_parser.add_argument('--worker', action='store_true')
+	imagenet_parser.add_argument('--workers', type=str)
 
 def parse(args):
 	parser = argparse.ArgumentParser(prog='project_pactum',

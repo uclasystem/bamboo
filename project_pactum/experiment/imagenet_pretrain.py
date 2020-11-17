@@ -28,20 +28,6 @@ def get_horovod_options(options, instances):
 
     return np, cluster_conf
 
-def construct_run_cmd(options, log_dir, instances):
-    np, horovod_cluster_str = get_horovod_options(options, instances)
-    horovod_run_cmd = ' '.join(['cd horovod-examples/pytorch;',
-        '. .venv/bin/activate;', 'nohup horovodrun -np', str(np), '-H',
-        horovod_cluster_str, 'python pytorch_imagenet_resnet50.py --epochs',
-        str(options.epochs), '> ' + log_dir + '/output.txt'])
-
-    return horovod_run_cmd
-
-def create_log_folder(leader):
-    log_dir = os.path.join('~', 'experiment', 'imagenet-pretrain')
-
-    leader.ssh_command('mkdir -p ' + log_dir)
-    return log_dir
 
 def run(options):
     nfs_server = start_nfs_server()
@@ -66,20 +52,45 @@ def run(options):
                 raise Exception("No NFS volume found on instance {}. "
                                 "Make sure NFS server is running".format(inst.id))
 
-        leader = instances[0]
-        log_dir = create_log_folder(leader)
+    leader = instances[0]
+    log_dir = create_log_folder(leader)
 
-        horovod_run_cmd = construct_run_cmd(options, log_dir, instances)
-
-        # Select the first instance to issue the run cmd
-        print("Running imagenet")
-        leader.ssh_command(horovod_run_cmd)
+    # Select the first instance to issue the run cmd
+    print("Running imagenet")
+    leader.ssh_command(' '.join(['cd project-pactum; . .venv/bin/actiavte;',
+        'python -m project_pactum --daemonize'
+        'experiment imagenet-pretrain --worker',
+        '--ngpus', str(options.ngpus),
+        '--cluser-size', str(options.cluster_size),
+        '--epochs', str(options.epochs),
+        '--workers', get_horovod_options[1]]))
 
     except Exception as e:
         print("[ERROR]", str(e))
-    finally:
         print("Terminating instances")
         ec2 = boto3.client('ec2')
         ec2.terminate_instances(InstanceIds=[i.id for i in instances])
 
         #nfs_server.stop()
+
+
+## All this should happen on the remote server inside the '--worker' operations
+def create_log_folder():
+    log_dir = os.path.join('~', 'experiment', 'imagenet-pretrain')
+
+    subprocss.run(('mkdir -p ' + log_dir).split())
+    return log_dir
+
+def construct_run_cmd(options, log_dir):
+    np = options.ngpus * options.cluster_size
+    horovod_run_cmd = ' '.join(['. .venv/bin/activate;', 'nohup horovodrun -np',
+        str(np), '-H', options.workers, 'python pytorch_imagenet_resnet50.py',
+        '--epochs', str(options.epochs), '> ' + log_dir + '/output.txt'])
+
+    return horovod_run_cmd
+
+def worker(options):
+    log_dir = create_log_folder()
+    horovod_run_cmd = construct_run_cmd(options, log_dir)
+    with open(log_dir + '/cmd.txt', 'w') as f:
+        f.write(horovod_run_cmd)
