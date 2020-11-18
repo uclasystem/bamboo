@@ -91,12 +91,14 @@ class Instance:
 
     def ssh_command(self, command, live=False):
         ssh_command = ['ssh', '-q', '-t', '-i', self.key,
-                       ''.join([self.user, '@', self.public_ip]), command]
+                       ''.join([self.user, '@', self.public_ip]),
+                       '\'', command, '\'']
+        ssh_command = ' '.join(ssh_command)
 
         args = { 'stderr': sys.stderr, 'stdout': sys.stdout } if live\
                else { 'capture_output': True }
         print("SSH Command:", ssh_command)
-        return subprocess.run(ssh_command, **args)
+        return subprocess.run(ssh_command, shell=True, **args)
 
     def get_inst_info(self, aws_response):
         return aws_response['Reservations'][0]['Instances'][0]
