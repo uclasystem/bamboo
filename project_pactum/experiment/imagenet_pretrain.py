@@ -34,7 +34,7 @@ def run(options):
 
     print("Allocating spot instances for workers")
     instances = create_instance(options.cluster_size, options.instance_type,
-                                options.az, 'ami-08b5e3bcf87b59c07')
+                                options.az, 'ami-0f0aa914da49f348e')
 
     try:
         time.sleep(5)
@@ -57,6 +57,7 @@ def run(options):
         # Select the first instance to issue the run cmd
         print("Running imagenet")
         ret = leader.ssh_command(' '.join(['cd project-pactum; . .venv/bin/activate;',
+            'git pull',
             'python -m project_pactum --daemonize',
             'experiment imagenet-pretrain --worker',
             '--ngpus', str(options.ngpus),
@@ -88,7 +89,7 @@ def create_log_folder():
 
 def construct_run_cmd(options, log_dir):
     np = options.ngpus * options.cluster_size
-    horovod_run_cmd = ' '.join(['cd /home/project-pactum/project-pactum',
+    horovod_run_cmd = ' '.join(['cd /home/project-pactum/project-pactum;',
         'horovodrun', '-np', str(np), '-H', options.workers,
         'python project_pactum/experiment/pytorch_imagenet_resnet50.py',
         '--epochs', str(options.epochs)])
