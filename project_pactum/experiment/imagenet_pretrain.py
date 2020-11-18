@@ -83,8 +83,8 @@ def create_log_folder():
 
 def construct_run_cmd(options, log_dir):
     np = options.ngpus * options.cluster_size
-    horovod_run_cmd = ' '.join(['nohup horovodrun',
-        '-np', str(np), '-H', options.workers,
+    horovod_run_cmd = ' '.join(['horovodrun', '-np', str(np),
+        '-H', options.workers,
         'python project_pactum/experiment/pytorch_imagenet_resnet50.py',
         '--epochs', str(options.epochs)])
 
@@ -94,4 +94,4 @@ def worker(options):
     log_dir = create_log_folder()
     horovod_run_cmd = construct_run_cmd(options, log_dir)
     with open(log_dir + '/output.txt', 'w') as f:
-        subprocess.run(horovod_run_cmd.split())
+        subprocess.run(horovod_run_cmd.split(), stdout=f, stderr=f)
