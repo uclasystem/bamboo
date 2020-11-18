@@ -17,11 +17,11 @@ def main(args):
 
 	setup(options)
 
-    print("STARTING PROJ PACT")
+	print("STARTING PROJ PACT")
 
 	if 'command' in options:
 		if options.daemonize:
-            print("DAEMONIZING")
+			print("DAEMONIZING")
 			import project_pactum
 			with open(os.path.join(project_pactum.BASE_DIR, 'daemonize.txt'), 'w') as f:
 				with DaemonContext(stdout=f, stderr=f):
