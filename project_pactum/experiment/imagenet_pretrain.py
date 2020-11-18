@@ -57,7 +57,7 @@ def run(options):
         # Select the first instance to issue the run cmd
         print("Running imagenet")
         ret = leader.ssh_command(' '.join(['cd project-pactum; . .venv/bin/activate;',
-            'git pull',
+            'git pull;',
             'python -m project_pactum --daemonize',
             'experiment imagenet-pretrain --worker',
             '--ngpus', str(options.ngpus),
