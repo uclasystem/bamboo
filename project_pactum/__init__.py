@@ -19,7 +19,9 @@ def main(args):
 
 	if 'command' in options:
 		if options.daemonize:
-			with DaemonContext():
-				options.command(options)
+			import project_pactum
+			with open(os.path.join(project_pactum.BASE_DIR, 'daemonize.txt'), 'w') as f:
+				with DaemonContext(stdout=f, stderr=f):
+					options.command(options)
 		else:
 			options.command(options)
