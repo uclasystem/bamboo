@@ -34,7 +34,7 @@ def run(options):
 
     print("Allocating spot instances for workers")
     instances = create_instance(options.cluster_size, options.instance_type,
-                                options.az, 'ami-072de7bde5a141b93')
+                                options.az, 'ami-08b5e3bcf87b59c07')
 
     try:
         time.sleep(5)
@@ -53,17 +53,22 @@ def run(options):
                                 "Make sure NFS server is running".format(inst.id))
 
         leader = instances[0]
-        log_dir = create_log_folder(leader)
 
         # Select the first instance to issue the run cmd
         print("Running imagenet")
-        leader.ssh_command(' '.join(['cd project-pactum; . .venv/bin/actiavte;',
-            'python -m project_pactum --daemonize'
+        ret = leader.ssh_command(' '.join(['cd project-pactum; . .venv/bin/activate;',
+            'python -m project_pactum --daemonize',
             'experiment imagenet-pretrain --worker',
             '--ngpus', str(options.ngpus),
             '--cluster-size', str(options.cluster_size),
             '--epochs', str(options.epochs),
-            '--workers', get_horovod_options[1]]))
+            '--workers', get_horovod_options(options, instances)[1]]))
+
+        print("STDERR", ret.stderr.decode('utf-8'))
+        print("STDOUT", ret.stdout.decode('utf-8'))
+
+        if (ret.returncode != 0):
+            raise Exception
 
     except Exception as e:
         print("[ERROR]", str(e))
@@ -83,8 +88,8 @@ def create_log_folder():
 
 def construct_run_cmd(options, log_dir):
     np = options.ngpus * options.cluster_size
-    horovod_run_cmd = ' '.join(['horovodrun', '-np', str(np),
-        '-H', options.workers,
+    horovod_run_cmd = ' '.join(['cd /home/project-pactum/project-pactum',
+        'horovodrun', '-np', str(np), '-H', options.workers,
         'python project_pactum/experiment/pytorch_imagenet_resnet50.py',
         '--epochs', str(options.epochs)])
 
@@ -94,4 +99,4 @@ def worker(options):
     log_dir = create_log_folder()
     horovod_run_cmd = construct_run_cmd(options, log_dir)
     with open(log_dir + '/output.txt', 'w') as f:
-        subprocess.run(horovod_run_cmd.split(), stdout=f, stderr=f)
+        subprocess.run(horovod_run_cmd, stdout=f, stderr=f, shell=True)
