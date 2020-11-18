@@ -14,7 +14,7 @@ def test_command(options):
 	run()
 
 def imagenet_pretrain_command(options):
-    from .imagenet_pretrain import run
+    from .imagenet_pretrain import run, worker
     if not options.worker:
         run(options)
     else:

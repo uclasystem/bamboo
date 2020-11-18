@@ -52,18 +52,18 @@ def run(options):
                 raise Exception("No NFS volume found on instance {}. "
                                 "Make sure NFS server is running".format(inst.id))
 
-    leader = instances[0]
-    log_dir = create_log_folder(leader)
+        leader = instances[0]
+        log_dir = create_log_folder(leader)
 
-    # Select the first instance to issue the run cmd
-    print("Running imagenet")
-    leader.ssh_command(' '.join(['cd project-pactum; . .venv/bin/actiavte;',
-        'python -m project_pactum --daemonize'
-        'experiment imagenet-pretrain --worker',
-        '--ngpus', str(options.ngpus),
-        '--cluser-size', str(options.cluster_size),
-        '--epochs', str(options.epochs),
-        '--workers', get_horovod_options[1]]))
+        # Select the first instance to issue the run cmd
+        print("Running imagenet")
+        leader.ssh_command(' '.join(['cd project-pactum; . .venv/bin/actiavte;',
+            'python -m project_pactum --daemonize'
+            'experiment imagenet-pretrain --worker',
+            '--ngpus', str(options.ngpus),
+            '--cluster-size', str(options.cluster_size),
+            '--epochs', str(options.epochs),
+            '--workers', get_horovod_options[1]]))
 
     except Exception as e:
         print("[ERROR]", str(e))
@@ -76,21 +76,22 @@ def run(options):
 
 ## All this should happen on the remote server inside the '--worker' operations
 def create_log_folder():
-    log_dir = os.path.join('~', 'experiment', 'imagenet-pretrain')
+    log_dir = os.path.join('/home', 'project-pactum', 'experiment', 'imagenet-pretrain')
 
-    subprocss.run(('mkdir -p ' + log_dir).split())
+    subprocess.run(('mkdir -p ' + log_dir).split())
     return log_dir
 
 def construct_run_cmd(options, log_dir):
     np = options.ngpus * options.cluster_size
-    horovod_run_cmd = ' '.join(['. .venv/bin/activate;', 'nohup horovodrun -np',
-        str(np), '-H', options.workers, 'python pytorch_imagenet_resnet50.py',
-        '--epochs', str(options.epochs), '> ' + log_dir + '/output.txt'])
+    horovod_run_cmd = ' '.join(['nohup horovodrun',
+        '-np', str(np), '-H', options.workers,
+        'python project_pactum/experiment/pytorch_imagenet_resnet50.py',
+        '--epochs', str(options.epochs)])
 
     return horovod_run_cmd
 
 def worker(options):
     log_dir = create_log_folder()
     horovod_run_cmd = construct_run_cmd(options, log_dir)
-    with open(log_dir + '/cmd.txt', 'w') as f:
-        f.write(horovod_run_cmd)
+    with open(log_dir + '/output.txt', 'w') as f:
+        subprocess.run(horovod_run_cmd.split())
