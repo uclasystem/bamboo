@@ -88,6 +88,11 @@ def status(options, instances):
     stdout = status.stdout.decode('utf-8')
     return stdout
 
+def shutdown(instances):
+    print("Terminating instances")
+    ec2 = boto3.client('ec2')
+    ec2.terminate_instances(InstanceIds=instances)
+
 
 ## All this should happen on the remote server inside the '--worker' operations
 def create_log_folder():
