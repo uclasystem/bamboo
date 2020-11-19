@@ -303,3 +303,5 @@ if __name__ == '__main__':
         validate(epoch)
         log(epoch, "Finished epoch")
         save_checkpoint(epoch)
+
+    log(args.epochs, "imagenet-pretrain finished")

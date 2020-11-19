@@ -56,8 +56,8 @@ def run(options):
 
         # Select the first instance to issue the run cmd
         print("Running imagenet")
-        ret = leader.ssh_command(' '.join(['cd project-pactum; . .venv/bin/activate;',
-            'git pull;',
+        ret = leader.ssh_command(' '.join(['cd project-pactum;',
+            '. .venv/bin/activate;', 'git pull;',
             'python -m project_pactum --daemonize',
             'experiment imagenet-pretrain --worker',
             '--ngpus', str(options.ngpus),
@@ -65,11 +65,8 @@ def run(options):
             '--epochs', str(options.epochs),
             '--workers', get_horovod_options(options, instances)[1]]))
 
-        print("STDERR", ret.stderr.decode('utf-8'))
-        print("STDOUT", ret.stdout.decode('utf-8'))
-
         if (ret.returncode != 0):
-            raise Exception
+            raise Exception("SSH Command did not have returncode 0")
 
     except Exception as e:
         print("[ERROR]", str(e))
@@ -77,7 +74,19 @@ def run(options):
         ec2 = boto3.client('ec2')
         ec2.terminate_instances(InstanceIds=[i.id for i in instances])
 
-        #nfs_server.stop()
+    ## Convert to only ids for compat w/ coordinator
+    instances = [inst.id for inst in instances]
+    return instances
+
+def status(options, instances):
+    leader = Instance(instances[0])
+    leader.init_from_id()
+
+    log_file = os.path.join('/home', 'project-pactum', 'experiment',
+        'imagenet-pretrain', 'output.txt')
+    status = leader.ssh_command('tail -3 ' + log_file)
+    stdout = status.stdout.decode('utf-8')
+    return stdout
 
 
 ## All this should happen on the remote server inside the '--worker' operations

@@ -75,7 +75,7 @@ class Instance:
         if self.public_ip == None:
             self.public_ip = self.get_public_ip()
 
-        ssh_command = ['ssh', '-q', '-t', '-i', self.key,
+        ssh_command = ['ssh', '-q', '-i', self.key,
                        ''.join([self.user, '@', self.public_ip]), 'exit']
         retcode = subprocess.run(ssh_command).returncode
 
@@ -90,9 +90,9 @@ class Instance:
         return 0
 
     def ssh_command(self, command, live=False):
-        ssh_command = ['ssh', '-q', '-t', '-i', self.key,
+        ssh_command = ['ssh', '-i', self.key,
                        ''.join([self.user, '@', self.public_ip]),
-                       '\'', command, '\'']
+                       '"bash -c \'', command, '\'"']
         ssh_command = ' '.join(ssh_command)
 
         args = { 'stderr': sys.stderr, 'stdout': sys.stdout } if live\
