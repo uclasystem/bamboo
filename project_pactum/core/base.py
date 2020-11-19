@@ -78,6 +78,16 @@ def daemon_add_arguments(parser):
 
 	test_parser = subparsers.add_parser('test', help=None)
 	test_parser.set_defaults(command=test_command)
+    ## These are imagenet-pretrain args that I have to pass for now
+	test_parser.add_argument('--cluster-size', type=int, default=1)
+	test_parser.add_argument('--instance-type', type=str, default='p2.xlarge')
+	test_parser.add_argument('--ngpus', type=int, default=1)
+	test_parser.add_argument('--az', type=str, default=None)
+	test_parser.add_argument('--epochs', type=int, default=1)
+	test_parser.add_argument('--worker', action='store_true')
+	test_parser.add_argument('--workers', type=str)
+	test_parser.add_argument('--status', action='store_true')
+
 
 def experiment_add_arguments(parser):
 	subparsers = parser.add_subparsers(metavar='command')
@@ -107,6 +117,7 @@ def experiment_add_arguments(parser):
 	imagenet_parser.add_argument('--epochs', type=int, default=1)
 	imagenet_parser.add_argument('--worker', action='store_true')
 	imagenet_parser.add_argument('--workers', type=str)
+	imagenet_parser.add_argument('--status', action='store_true')
 
 def parse(args):
 	parser = argparse.ArgumentParser(prog='project_pactum',
