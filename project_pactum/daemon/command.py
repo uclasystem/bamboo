@@ -9,6 +9,7 @@ import sys
 from time import sleep
 
 import project_pactum
+import project_pactum.experiment.imagenet_pretrain
 
 SOCK_PATH = os.path.join(pid.DEFAULT_PID_DIR, 'project-pactum.sock')
 
@@ -16,7 +17,7 @@ def sock_recv(sock):
 	chunk = sock.recv(4096)
 	print("Got:", chunk, len(chunk))
 
-def main_loop():
+def main_loop(options):
 	from project_pactum.daemon.coordinator import Coordinator
 	coordinator = Coordinator()
 
@@ -29,14 +30,22 @@ def main_loop():
 	sock.setblocking(False)
 	sock.bind(SOCK_PATH)
 	sock.listen(1)
+
+	## Temporarily hardcoding imagenet experiment
+	coordinator.active_servers = imagenet_pretrain.run(options)
 	while True:
 		ready_to_read, _, _ = select.select([sock], [], [], 0)
 		for ready_sock in ready_to_read:
 			client_sock, _ = ready_sock.accept()
 			sock_recv(client_sock)
 		coordinator.check_cloudwatch()
+		status = imagenet_pretrain.status(options, coordinator.active_servers)
+		if "imagenet-pretrain finished" in status:
+			break
 		sleep(5)
 		# sock.close()
+
+	imagenet_pretrain.shutdown(coordinator.active_servers)
 
 
 def main_command(options):
@@ -47,7 +56,7 @@ def main_command(options):
 		context.stderr = sys.stderr
 		context.stdout = sys.stdout
 	with context:
-		main_loop()
+		main_loop(options)
 
 def test_command(options):
 	sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
