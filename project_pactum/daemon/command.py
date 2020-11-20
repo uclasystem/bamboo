@@ -41,8 +41,8 @@ def main_loop(coordinator):
 	x.start()
 
 	while coordinator.is_running():
-		coordinator.ensure_count()
 		coordinator.check_cloudwatch()
+		coordinator.ensure_count()
 		sleep(5)
 
 def main_command(options):
@@ -56,7 +56,9 @@ def main_command(options):
 		signal.SIGINT: handler,
 		signal.SIGTERM: handler,
 	}
-	context = daemon.DaemonContext(pidfile=pidfile, signal_map=signal_map)
+	context = daemon.DaemonContext(files_preserve=[coordinator.csv_file],
+	                               pidfile=pidfile,
+	                               signal_map=signal_map)
 	if options.debug:
 		context.detach_process = False
 		context.stderr = sys.stderr
