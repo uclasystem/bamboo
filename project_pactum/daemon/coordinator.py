@@ -94,17 +94,17 @@ class Coordinator:
 			if event['timestamp'] > self.cloudwatch_latest_event_time:
 				self.cloudwatch_latest_event_time = event['timestamp']
 			message = json.loads(event['message'])
-                        # TODO: Remove for implementation
-			print('Interruption warning', message['detail']['instance-id'])
+                        # TODO: Handle interruption here
 			interrupted_instance_ids.append(message['detail']['instance-id'])
 
 		with self.lock:
 			removed_servers = False
 			for instance_id in interrupted_instance_ids:
-				print('Removing {} (interrupted)'.format(instance_id))
+				print('Trying to remove {} (interrupted)'.format(instance_id))
 				try:
 					self.active_servers.remove(instance_id)
-					remove_servers = True
+					print('  Removed {} (interrupted)'.format(instance_id))
+					removed_servers = True
 				except ValueError:
 					pass
 			if removed_servers:
