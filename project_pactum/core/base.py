@@ -53,6 +53,17 @@ def check_add_arguments(parser):
 	version_parser = subparsers.add_parser('version', help=None)
 	version_parser.set_defaults(command=version_command)
 
+def control_add_arguments(parser):
+	subparsers = parser.add_subparsers(metavar='command')
+
+	from project_pactum.daemon.command import list_command
+	list_parser = subparsers.add_parser('list', help=None)
+	list_parser.set_defaults(command=list_command)
+
+	from project_pactum.daemon.command import test_command
+	test_parser = subparsers.add_parser('test', help=None)
+	test_parser.set_defaults(command=test_command)
+
 def dataset_add_arguments(parser):
 	from project_pactum.dataset.command import add_command, list_command, remove_command
 	subparsers = parser.add_subparsers(metavar='command')
@@ -69,15 +80,13 @@ def dataset_add_arguments(parser):
 	remove_parser.add_argument('datasets', nargs='+')
 
 def daemon_add_arguments(parser):
-	from project_pactum.daemon.command import main_command, test_command
+	from project_pactum.daemon.command import main_command
 
 	parser.set_defaults(command=main_command)
 	parser.add_argument('--debug', action='store_true')
-
-	subparsers = parser.add_subparsers(metavar='command')
-
-	test_parser = subparsers.add_parser('test', help=None)
-	test_parser.set_defaults(command=test_command)
+	parser.add_argument('--count', type=int, default=8)
+	parser.add_argument('--instance-type', type=str, default='p2.xlarge')
+	parser.add_argument('--zone', type=str, default='us-east-1d')
 
 def experiment_add_arguments(parser):
 	subparsers = parser.add_subparsers(metavar='command')
@@ -118,6 +127,9 @@ def parse(args):
 
 	check_parser = subparsers.add_parser('check', help=None)
 	check_add_arguments(check_parser)
+
+	control_parser = subparsers.add_parser('control', help=None)
+	control_add_arguments(control_parser)
 
 	dataset_parser = subparsers.add_parser('dataset', help=None)
 	dataset_add_arguments(dataset_parser)
@@ -166,16 +178,16 @@ def setup_tensorflow():
 	for gpu in gpus:
 		tf.config.experimental.set_memory_growth(gpu, True)
 
-def setup(options):
-	setup_logging()
-
-	if options.command_name == 'dataset':
-		from project_pactum.dataset.base import setup_datasets
-		setup_datasets()
-
 @functools.wraps(subprocess.run)
 def run(args, **kwargs):
 	logger = logging.getLogger('project_pactum.run')
 	logger.debug(' '.join(args))
 	p = subprocess.run(args, **kwargs)
 	return p
+
+def setup(options):
+	setup_logging()
+
+	if options.command_name == 'dataset':
+		from project_pactum.dataset.base import setup_datasets
+		setup_datasets()

@@ -1,10 +1,12 @@
 import daemon
-import multiprocessing
+import functools
 import os
 import pid
 import select
+import signal
 import socket
 import sys
+import threading
 
 from time import sleep
 
@@ -12,45 +14,68 @@ import project_pactum
 
 SOCK_PATH = os.path.join(pid.DEFAULT_PID_DIR, 'project-pactum.sock')
 
-def sock_recv(sock):
-	chunk = sock.recv(4096)
-	print("Got:", chunk, len(chunk))
+def signal_handler(coordinator, signum, frame):
+	coordinator.shutdown()
+	sys.exit(0)
 
-def main_loop():
-	from project_pactum.daemon.coordinator import Coordinator
-	coordinator = Coordinator()
-
+def socket_loop(coordinator):
 	try:
 		os.unlink(SOCK_PATH)
 	except:
 		if os.path.exists(SOCK_PATH):
 			raise
 	sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-	sock.setblocking(False)
 	sock.bind(SOCK_PATH)
 	sock.listen(1)
-	while True:
-		ready_to_read, _, _ = select.select([sock], [], [], 0)
-		for ready_sock in ready_to_read:
-			client_sock, _ = ready_sock.accept()
-			sock_recv(client_sock)
+	while coordinator.is_running():
+		client_sock, _ = sock.accept()
+		msg = str(client_sock.recv(4096), 'utf-8')
+		reply = coordinator.get_reply(msg)
+		client_sock.sendall(bytes(reply, 'utf-8'))
+		client_sock.close()
+	sock.close()
+
+def main_loop(coordinator):
+
+	x = threading.Thread(target=socket_loop, args=(coordinator,), daemon=True)
+	x.start()
+
+	while coordinator.is_running():
+		coordinator.ensure_count()
 		coordinator.check_cloudwatch()
 		sleep(5)
-		# sock.close()
-
 
 def main_command(options):
+	from project_pactum.daemon.coordinator import Coordinator
+	coordinator = Coordinator(options.count, options.instance_type,
+	                          options.zone)
+
 	pidfile = pid.PidFile('project-pactum')
-	context = daemon.DaemonContext(pidfile=pidfile)
+	handler = functools.partial(signal_handler, coordinator)
+	signal_map = {
+		signal.SIGINT: handler,
+		signal.SIGTERM: handler,
+	}
+	context = daemon.DaemonContext(pidfile=pidfile, signal_map=signal_map)
 	if options.debug:
 		context.detach_process = False
 		context.stderr = sys.stderr
 		context.stdout = sys.stdout
 	with context:
-		main_loop()
+		main_loop(coordinator)
+
+def list_command(options):
+	sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+	sock.connect(SOCK_PATH)
+	sock.sendall(bytes('list', 'utf-8'))
+	msg = str(sock.recv(4096), 'utf-8')
+	print(msg)
+	sock.close()
 
 def test_command(options):
 	sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 	sock.connect(SOCK_PATH)
-	sock.sendall(b'test\0')
+	sock.sendall(bytes('test', 'utf-8'))
+	msg = str(sock.recv(4096), 'utf-8')
+	print(msg)
 	sock.close()
