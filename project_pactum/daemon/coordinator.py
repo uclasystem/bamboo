@@ -101,7 +101,7 @@ class Coordinator:
 		with self.lock:
 			removed_servers = False
 			for instance_id in interrupted_instance_ids:
-				print('Removing {} (interrupted)'.format(intsance_id))
+				print('Removing {} (interrupted)'.format(instance_id))
 				try:
 					self.active_servers.remove(instance_id)
 					remove_servers = True
