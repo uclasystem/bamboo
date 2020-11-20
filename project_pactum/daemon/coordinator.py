@@ -36,8 +36,6 @@ class Coordinator:
 		current_time = datetime.datetime.now()
 		delta = current_time - self.start_time
 		delta_seconds = delta.days * 86400 + delta.seconds
-                # TODO: Remove
-		print(len(self.active_servers), 'active servers (writing)')
 		self.csv_writer.writerow([delta_seconds, len(self.active_servers)])
 
 	def get_reply(self, msg):
@@ -82,6 +80,7 @@ class Coordinator:
 			return
 
 		with self.lock:
+			self.write_active_servers()
 			self.active_servers = self.active_servers + [x.id for x in instances]
 			self.write_active_servers()
 
@@ -98,14 +97,16 @@ class Coordinator:
 			interrupted_instance_ids.append(message['detail']['instance-id'])
 
 		with self.lock:
-			removed_servers = False
+			active_servers_changed = False
 			for instance_id in interrupted_instance_ids:
-				print('Trying to remove {} (interrupted)'.format(instance_id))
-				try:
-					self.active_servers.remove(instance_id)
-					print('  Removed {} (interrupted)'.format(instance_id))
-					removed_servers = True
-				except ValueError:
-					pass
-			if removed_servers:
+				if instance_id in self.active_servers:
+					active_servers_changed = True
+					break
+			if active_servers_changed:
+				self.write_active_servers()
+				for instance_id in interrupted_instance_ids:
+					try:
+						self.active_servers.remove(instance_id)
+					except ValueError:
+						pass
 				self.write_active_servers()
