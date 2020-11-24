@@ -58,7 +58,7 @@ def create_instance(num_instances, instance_type, availability_zone=None,
 	args = {
 		'ImageId': image_id,
 		'InstanceType': instance_type,
-		'MinCount': num_instances,
+		'MinCount': 1,
 		'MaxCount': num_instances,
 		'InstanceMarketOptions': {
 			'MarketType': 'spot',

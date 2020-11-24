@@ -182,7 +182,7 @@ def monitor_iteration(writer, instance_type, available_zones, created=False):
 			continue
 
 		try:
-			instances = create_instance(zone, instance_type)
+			instances = create_instance(1, instance_type, zone)
 			created = True
 			writer.writerow([datetime.now(), instance_type, zone, 'allow'])
 			for instance in instances:
