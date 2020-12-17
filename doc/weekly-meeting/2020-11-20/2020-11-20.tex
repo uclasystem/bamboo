@@ -1,6 +1,6 @@
 \input{../preamble.tex}
 \title{Weekly Meeting}
-\date{November 20, 2020}
+\date{November 24, 2020}
 \author{Jon Eyolfson \and John Thorpe}
 
 \begin{document}
@@ -13,14 +13,7 @@
 
   \begin{frame}
     \frametitle{Previous Meeting}
-
-    \begin{itemize}
-      \item TODO
-    \end{itemize}
-  \end{frame}
-
-  \begin{frame}
-    \frametitle{Fault Model}
+    \textbf{Understanding the fault model}
       \begin{itemize}
         \item How often do preemptions occurr?
         \item How many get preempted together?
@@ -33,6 +26,76 @@
         \end{itemize}
 
       \end{itemize}
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Fault Model Analysis}
+
+    Ran an agent that tried to maintain a certain number of instances \\
+    \begin{itemize}
+      \item Request instances if below target
+      \item Check for preemption warnings
+    \end{itemize}
+
+    \vspace{3em}
+    \textbf{Disclaimer:} We discovered a discrepancy between our logged results
+      and the number of instances due to missing some preemption notices.
+      Therefore these current figures \emph{overestimate} the availability of
+      instances.
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{\texttt{p2.xlarge} on \texttt{us-east-1a}}
+    \begin{center}
+      \includestandalone[scale=1.25]{../../figures/aws-spot-instances-p2xlarge-us-east-1e-2020-11-20-to-2020-11-21}
+    \end{center}
+    \begin{itemize}
+      \item \texttt{p2.xlarge} instances in regions besides \texttt{us-east-1d} are rarely preempted
+    \end{itemize}
+
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{\texttt{g4dn.xlarge} on \texttt{us-east-1c}}
+    \begin{center}
+      \includestandalone[scale=1.25]{../../figures/aws-spot-instances-g4dnxlarge-us-east-1c-2020-11-20-to-2020-11-21}
+    \end{center}
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{\texttt{g4dn.xlarge} on \texttt{us-east-1d}}
+    \begin{center}
+      \includestandalone[scale=1.25]{../../figures/aws-spot-instances-g4dnxlarge-us-east-1d-2020-11-23-to-2020-11-13}
+    \end{center}
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Fault Model (So Far)}
+    \begin{itemize}
+      \item Preemptions do seem to happen in bulk
+      \item For a given region, potentially long periods where no instances of a type available
+      \item Huge differences between instance types and regions in their preemption behavior
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Moving Forward}
+
+    Further understanding of the fault model
+    \begin{itemize}
+      \item Is there a specific patter in the preemption of instances (certain instances live longer)
+    \end{itemize}
+
+    Understanding existing resource elasticity
+    \begin{itemize}
+      \item Can it handle our fault model?
+    \end{itemize}
+
+    Examining the feasibility of the statistical optimizer in this fault model
+    \begin{itemize}
+      \item Will it work with bulk preemptions?
+    \end{itemize}
+
   \end{frame}
 
 \end{document}

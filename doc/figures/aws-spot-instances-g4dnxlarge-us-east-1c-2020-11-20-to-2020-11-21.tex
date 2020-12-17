@@ -1,0 +1,23 @@
+\documentclass[crop,convert,tikz]{standalone}
+\usetikzlibrary{datavisualization}
+\usetikzlibrary{fpu}
+\begin{document}
+\begin{tikzpicture}
+  \datavisualization[
+    scientific axes=clean,
+    x axis={
+      include value=0,
+      label={hours since start},
+      attribute=x,
+    },
+    y axis={
+      label={\# of instances}
+      attribute=y,
+      include value=0,
+      ticks=many,
+    },
+    visualize as line,
+  ]
+  data [headline={x,y}, read from file={../../data/aws-spot-instances-g4dn-xlarge-us-east-1c-2020-11-20-1930-to-2020-11-21-2200_scaled.csv}];
+\end{tikzpicture}
+\end{document}
