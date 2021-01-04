@@ -6,7 +6,7 @@ import threading
 
 import project_pactum
 
-from project_pactum.aws.cloudwatch import get_latest_event_time, get_events
+from project_pactum.aws.cloudwatch import get_latest_timestamp, get_all_log_events
 from project_pactum.aws.instance import create_instance, terminate_instances
 
 class Coordinator:
@@ -15,7 +15,7 @@ class Coordinator:
 		self.lock = threading.Lock()
 		self.running = True
 
-		self.cloudwatch_latest_event_time = get_latest_event_time()
+		self.cloudwatch_latest_timestamp = get_latest_timestamp()
 
 		self.count = count
 		self.instance_type = instance_type
@@ -36,7 +36,9 @@ class Coordinator:
 		current_time = datetime.datetime.now()
 		delta = current_time - self.start_time
 		delta_seconds = delta.days * 86400 + delta.seconds
-		self.csv_writer.writerow([delta_seconds, len(self.active_servers)])
+                # TODO: Remove
+		print(len(self.active_servers), 'active servers (writing)')
+		self.csv_writer.writerow([delta_seconds, len(self.active_servers), current_time])
 
 	def get_reply(self, msg):
 		if msg == 'list':
@@ -89,9 +91,9 @@ class Coordinator:
 			return
 
 		interrupted_instance_ids = []
-		for event in get_events(self.cloudwatch_latest_event_time):
-			if event['timestamp'] > self.cloudwatch_latest_event_time:
-				self.cloudwatch_latest_event_time = event['timestamp']
+		for event in get_all_log_events(self.cloudwatch_latest_timestamp):
+			if event['timestamp'] > self.cloudwatch_latest_timestamp:
+				self.cloudwatch_latest_timestamp = event['timestamp']
 			message = json.loads(event['message'])
                         # TODO: Handle interruption here
 			interrupted_instance_ids.append(message['detail']['instance-id'])

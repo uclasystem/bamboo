@@ -2,63 +2,66 @@ import boto3
 
 LOG_GROUP_NAME = '/aws/events/project-pactum'
 
-def get_latest_event_time():
+def get_log_streams(limit=None):
+	kwargs = {
+	        'logGroupName': LOG_GROUP_NAME,
+		'orderBy': 'LastEventTime',
+		'descending': True,
+	}
+	if limit:
+		kwargs['limit'] = limit
 	client = boto3.client('logs')
-	response = client.describe_log_streams(
-		logGroupName=LOG_GROUP_NAME,
-		orderBy='LastEventTime',
-		descending=True,
-	)
-	try:
-		return response['logStreams'][0]['lastEventTimestamp']
-	except:
-		return 0
-
-def get_events(latest_event_time):
-	client = boto3.client('logs')
-	response = client.describe_log_streams(
-		logGroupName=LOG_GROUP_NAME,
-		orderBy='LastEventTime',
-		descending=True,
-	)
+	response = client.describe_log_streams(**kwargs)
 	while True:
-		done = False
 		for log_stream in response['logStreams']:
-			if log_stream['lastEventTimestamp'] <= latest_event_time:
-				done = True
-				break
-			for event in get_events_for_stream(log_stream['logStreamName'], latest_event_time):
-				yield event
-		if done:
-			break
+			yield log_stream
 		if not 'nextToken' in response:
 			break
-		response = client.describe_log_streams(
-			logGroupName=LOG_GROUP_NAME,
-			orderBy='LastEventTime',
-			descending=True,
-			nextToken=response['nextToken'],
-		)
+		kwargs['nextToken'] = response['nextToken']
+		response = client.describe_log_streams(**kwargs)
 
-def get_events_for_stream(log_stream_name, latest_event_time):
+def get_log_events(log_stream_name, start_time=None):
+	kwargs = {
+	        'logGroupName': LOG_GROUP_NAME,
+		'logStreamName': log_stream_name,
+		'startFromHead': False,
+	}
+	if start_time:
+		kwargs['startTime'] = start_time
 	client = boto3.client('logs')
-	next_forward_token = None
-	log_events = client.get_log_events(
-		logGroupName=LOG_GROUP_NAME,
-		logStreamName=log_stream_name,
-		startFromHead=True,
-		startTime=latest_event_time,
-	)
-	while next_forward_token != log_events['nextForwardToken']:
-		for event in log_events['events']:
-			if event['timestamp'] > latest_event_time:
-				yield event
+	next_backward_token = None
+	log_events = client.get_log_events(**kwargs)
+	while next_backward_token != log_events['nextBackwardToken']:
+		# Tested with limit=1 argument for get_log_events
+		for event in reversed(log_events['events']):
+			yield event
+		next_backward_token = log_events['nextBackwardToken']
+		kwargs['nextToken'] = next_backward_token
+		log_events = client.get_log_events(**kwargs)
 
-		next_forward_token = log_events['nextForwardToken']
-		log_events = client.get_log_events(
+def delete_log_streams():
+	client = boto3.client('logs')
+	for log_stream_name in get_log_stream_names():
+		response = client.delete_log_stream(
 			logGroupName=LOG_GROUP_NAME,
-			logStreamName=log_stream_name,
-			startFromHead=True,
-			startTime=latest_event_time,
-			nextToken=next_forward_token,
+			logStreamName=log_stream_name
 		)
+
+def get_log_stream_names():
+	for log_stream in get_log_streams():
+		yield log_stream['logStreamName']
+
+def get_latest_timestamp():
+	for log_stream in get_log_streams(limit=1):
+		return log_stream['lastEventTimestamp']
+	return 0
+
+def get_all_log_events(start_time):
+	for log_stream in get_log_streams():
+		if log_stream['lastEventTimestamp'] <= start_time:
+			break
+		log_stream_name = log_stream['logStreamName']
+		for event in get_log_events(log_stream_name, start_time=start_time):
+			if event['timestamp'] <= start_time:
+				break
+			yield event

@@ -36,7 +36,6 @@ def socket_loop(coordinator):
 	sock.close()
 
 def main_loop(coordinator):
-
 	x = threading.Thread(target=socket_loop, args=(coordinator,), daemon=True)
 	x.start()
 
