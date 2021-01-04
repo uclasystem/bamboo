@@ -1,5 +1,4 @@
 \input{../preamble.tex}
-
 \title{Weekly Meeting}
 \date{November 20, 2020}
 \author{Jon Eyolfson \and John Thorpe}
@@ -24,6 +23,22 @@
     \frametitle{\texttt{p2.xlarge} on \texttt{us-east-1d}}
 
     \includestandalone[scale=1.25]{../../figures/aws-spot-instances-p2-xlarge-2020-11-20-to-2020-11-23}
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Fault Model}
+      \begin{itemize}
+        \item How often do preemptions occurr?
+        \item How many get preempted together?
+        \item Can we get servers back after preemption?
+        \item Is there any pattern to the preemptions?
+        \begin{itemize}
+          \item Instance type?
+          \item Initialization order?
+          \item Anything else that can help us understand cause of preemption
+        \end{itemize}
+
+      \end{itemize}
   \end{frame}
 
 \end{document}
