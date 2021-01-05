@@ -7,7 +7,7 @@ import threading
 import project_pactum
 
 from project_pactum.aws.cloudwatch import get_latest_timestamp, get_all_log_events
-from project_pactum.aws.instance import create_instance, terminate_instances
+from project_pactum.aws.instance import create_instance, terminate_instances, describe_instances
 
 class Coordinator:
 
@@ -86,6 +86,7 @@ class Coordinator:
 			self.active_servers = self.active_servers + [x.id for x in instances]
 			self.write_active_servers()
 
+	# TODO: Understand why we are missing some interruption notices
 	def check_cloudwatch(self):
 		if not self.running:
 			return
@@ -99,16 +100,39 @@ class Coordinator:
 			interrupted_instance_ids.append(message['detail']['instance-id'])
 
 		with self.lock:
-			active_servers_changed = False
-			for instance_id in interrupted_instance_ids:
-				if instance_id in self.active_servers:
-					active_servers_changed = True
-					break
-			if active_servers_changed:
-				self.write_active_servers()
-				for instance_id in interrupted_instance_ids:
-					try:
-						self.active_servers.remove(instance_id)
-					except ValueError:
-						pass
-				self.write_active_servers()
+			if check_server_ids(interrupted_instance_ids):
+				record_instance_change(interrupted_instance_ids)
+
+
+	# Backup check to make sure we didn't miss any instances that have been
+	# terminated
+	def check_terminated(self):
+		if not self.running:
+			return
+
+		finished_instances = []
+		response = describe_instances(self.active_servers)
+		for res in response['Reservations']:
+			for instance in res['Instances']:
+				state = instance['State']['Name']
+				if state not in ['running', 'pending']:
+					finished_instances.append(instance['InstanceId'])
+
+		with self.lock:
+			if check_server_ids(finished_instances):
+				record_instance_change(finished_instances)
+
+	def check_server_ids(self, server_ids):
+		for instance_id in server_ids:
+			if instance_id in self.active_servers:
+				return True
+
+	def record_instance_change(self, server_ids):
+		self.write_active_servers()
+		for instance_id in server_ids:
+			try:
+				self.active_servers.remove(instance_id)
+			except ValueError:
+				pass
+		self.write_active_servers()
+

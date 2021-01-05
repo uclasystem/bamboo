@@ -4,6 +4,10 @@ import re
 
 IMAGE_ID = 'ami-09696628562d9969d'
 
+def describe_instances(instance_ids):
+	ec2 = boto3.client('ec2')
+	return ec2.describe_instances(instance_ids)
+
 def get_instances():
 	instances = []
 
