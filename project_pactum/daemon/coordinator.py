@@ -100,8 +100,8 @@ class Coordinator:
 			interrupted_instance_ids.append(message['detail']['instance-id'])
 
 		with self.lock:
-			if check_server_ids(interrupted_instance_ids):
-				record_instance_change(interrupted_instance_ids)
+			if self.check_server_ids(interrupted_instance_ids):
+				self.record_instance_change(interrupted_instance_ids)
 
 
 	# Backup check to make sure we didn't miss any instances that have been
@@ -119,8 +119,9 @@ class Coordinator:
 					finished_instances.append(instance['InstanceId'])
 
 		with self.lock:
-			if check_server_ids(finished_instances):
-				record_instance_change(finished_instances)
+			if self.check_server_ids(finished_instances):
+				print("REMOVING TERMINATED INSTANCES. This means some instances were missed")
+				self.record_instance_change(finished_instances)
 
 	def check_server_ids(self, server_ids):
 		for instance_id in server_ids:

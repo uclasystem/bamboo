@@ -41,7 +41,7 @@ def main_loop(coordinator):
 
 	while coordinator.is_running():
 		coordinator.check_cloudwatch()
-		coordiantor.check_terminated()
+		coordinator.check_terminated()
 		coordinator.ensure_count()
 		sleep(5)
 
