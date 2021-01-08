@@ -48,6 +48,7 @@
     TODO:
     \begin{itemize}
       \item Run fixed experiments to update fault model understanding
+      \item Add in depth instance metrics
     \end{itemize}
   \end{frame}
 
@@ -56,31 +57,48 @@
 
     Considering using BytePS as basis for system
     \begin{itemize}
-      \item State of the art performance for distributed ML
-      \item Separation of the Summation Service (SS) for summing tensors
-      \begin{itemize}
-        \item Isolating the optimizer functionality we need to adjust for missing samples
-      \end{itemize}
+      \item Summation Service isolates gradient summing funcionality
       \item However, BytePS highly topology dependent
       \begin{itemize}
         \item Considers intra-node topology
         \item Might require significant engineering to adjust dynamically
       \end{itemize}
-
     \end{itemize}
+
+    \vspace{1em}
+    Horovod has dynamic version that can adapt to changing cluster
+    \begin{itemize}
+      \item Slower than BytePS but some engineering issues solved
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Baselines}
+
+    \textbf{Elastic Horovod}
+    \begin{itemize}
+      \item Elastic Horovod can dynamically scale cluster size
+      \item "...running on preemptable or spot instances..."
+    \end{itemize}
+
+    \vspace{1em}
+    This version of Horovod is an excellent baseline for comparison
   \end{frame}
 
   \begin{frame}
     \frametitle{Plans Moving Forward}
 
-    Run in updated fault model experiments (As stated above) \\
-    By next week $\rightarrow$ come up with more concrete system design
-    Finish benchmark setup (BERT)
-    Start establishing some baselines
+    Run updated fault model experiments (As stated above) \\
+
+    \vspace{1em}
+    Understand performance and shortcomings of Horovod Elastic
     \begin{itemize}
-      \item Using redundant nodes in case of failures
-      \item Relying on asynchrony
+      \item Time to reconfigure cluster
+      \item Penalty to accuracy
     \end{itemize}
+
+    \vspace{1em}
+    Make system design concrete
   \end{frame}
 
 \end{document}
