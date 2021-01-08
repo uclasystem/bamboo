@@ -52,14 +52,34 @@
   \end{frame}
 
   \begin{frame}
+    \frametitle{Thoughts on ML Framework}
+
+    Considering using BytePS as basis for system
+    \begin{itemize}
+      \item State of the art performance for distributed ML
+      \item Separation of the Summation Service (SS) for summing tensors
+      \begin{itemize}
+        \item Isolating the optimizer functionality we need to adjust for missing samples
+      \end{itemize}
+      \item However, BytePS highly topology dependent
+      \begin{itemize}
+        \item Considers intra-node topology
+        \item Might require significant engineering to adjust dynamically
+      \end{itemize}
+
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}
     \frametitle{Plans Moving Forward}
 
-    Use understanding to make system design more concrete
+    Run in updated fault model experiments (As stated above) \\
+    By next week $\rightarrow$ come up with more concrete system design
+    Finish benchmark setup (BERT)
+    Start establishing some baselines
     \begin{itemize}
-      \item Communication patterns requried by system
-      \item How to structure optimizer? (BytePS Summation Service could be good
-            option for this but as pointed out by Shen BytePS is heavily integrated
-            with topology $\rightarrow$ could make engineering overhead excessive)
+      \item Using redundant nodes in case of failures
+      \item Relying on asynchrony
     \end{itemize}
   \end{frame}
 
