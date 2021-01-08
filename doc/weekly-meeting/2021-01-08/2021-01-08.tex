@@ -1,0 +1,66 @@
+\input{../preamble.tex}
+\title{Weekly Meeting}
+\date{January 8, 2020}
+\author{Jon Eyolfson \and John Thorpe \and Shen Teng}
+
+\begin{document}
+
+  \begin{frame}[plain]
+    \titlepage
+  \end{frame}
+
+  \setcounter{framenumber}{0}
+
+  \begin{frame}
+    \frametitle{Previous Meeting}
+    \textbf{Understanding the fault model}
+    \begin{itemize}
+      \item How often do preemptions occurr?
+      \item How many get preempted together?
+      \item Can we get servers back after preemption?
+    \end{itemize}
+
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Fault Model Analysis}
+
+    Ran an agent that tried to maintain a certain number of instances \\
+    \begin{itemize}
+      \item Request instances if below target
+      \item Check for preemption warnings
+    \end{itemize}
+
+    \vspace{1em}
+    Got some preliminary data for this task \\
+    Also discovered error that over-estimated instance availability
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Fault Model Updates}
+
+    Fixed agent: availability tracked accurately
+    \begin{itemize}
+      \item Redundant checks for preempted instances
+    \end{itemize}
+
+    \vspace{1em}
+    TODO:
+    \begin{itemize}
+      \item Run fixed experiments to update fault model understanding
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Plans Moving Forward}
+
+    Use understanding to make system design more concrete
+    \begin{itemize}
+      \item Communication patterns requried by system
+      \item How to structure optimizer? (BytePS Summation Service could be good
+            option for this but as pointed out by Shen BytePS is heavily integrated
+            with topology $\rightarrow$ could make engineering overhead excessive)
+    \end{itemize}
+  \end{frame}
+
+\end{document}
