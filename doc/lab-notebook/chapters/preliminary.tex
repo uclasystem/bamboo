@@ -39,3 +39,81 @@ Each test used the p3 instance type which are equipped with V100 GPUs.
             but getting preempted means losing all work
     \end{itemize}
 \end{itemize}
+
+
+\section{Horovod Elastic Tests}
+Shen found that there already exists a Horovod benchmark with dynamic
+cluster management.
+Our goal is to run this framework in elastic mode and compare its performance
+with the on-demand version where no servers will join or leave during
+computation.
+
+\vspace{1em}
+\textbf{Initial Question to Answer:} Is there still room for improvement for
+\emph{Dynamic Clusters using Data Parallelism (DP)}.
+\begin{itemize}
+    \item Does the Elastic version incur excessively high overhead when
+      adding or losing server?
+    \item Does the accuracy take a hit from the dynamic aspect of the system?
+    \item Specifically, are there research challenges involved in solving these
+      issues?
+\end{itemize}
+
+\vspace{1em}
+Focus on validating DP for these experiments because if we cannot find significant
+contributions at the level of DP then we should shift our focus to Model
+Parallelism (MP).
+
+\vspace{2em}
+TO GO HERE:
+\begin{itemize}
+    \item Performance and accuracy numbers of Horovod elastic vs Horovod stable
+    \item Ideally run over several attempts to mitigate variability caused by
+      using NFS server to store data
+\end{itemize}
+
+\vspace{2em}
+\textbf{Follow-up Discussion from 01/13/21 - In Depth Meeting} \\
+High level discussion topics related to dataset partitioning and Data Paralellism:
+\begin{itemize}
+    \item Data partitioning: Harry's region based partitiong proposal
+    \begin{itemize}
+        \item Given $r$ regions (partitions essentially) and $N$ nodes, each
+          region gets $N/r$ workers.
+        \item If region $r_i$ loses some workers and region $r_j$ still has all
+          workers $\rightarrow$ transfer some workers from $r_j$ to $r_i$
+        \item In each region $\rightarrow$ use the PyTorch Distributed Data Sampler
+          to make sure each minibatch is not-overlapping
+    \end{itemize}
+
+    \item Data partitioning: Small chunk-based partitioning
+    \begin{itemize}
+        \item Divide the whole dataset up into small chunks (100MB for example)
+        \item Store on S3
+        \item When worker fails, distribute its chunks to all remaining workers
+        \item When workers added redistribute extra chunks to maintain roughly equal
+          workload
+        \item \textbf{Question:} If we keep losing workers, how will we eventually run
+          when there is more data than the workers can fit on their disks? (I guess
+          this goes for any method of partitioning though...)
+    \end{itemize}
+\end{itemize}
+
+\vspace{1em}
+High level discussion related to exploring model parallelism (MP)
+\begin{itemize}
+    \item \textbf{Main Question:} How to ensure reliability when running MP on
+      transient servers?
+    \item \textbf{Suggested Solutions (Very high level):}
+    \begin{itemize}
+        \item Split model into smaller parts than necessary $\rightarrow$
+          if minimum GPUs required for model to fit, split model into 6 parts
+        \item Run small copies redundantly on other GPUs $\rightarrow$ if we
+          lose a worker with some portions of the model other GPUs will have that
+          portion
+        \item Use some form of \textbf{erasure coding} to reconstruct missing data?
+        \begin{itemize}
+            \item What would erasure coding look like in this context?
+        \end{itemize}
+    \end{itemize}
+\end{itemize}
