@@ -10,6 +10,43 @@ dedicated servers.
 
 Add in \href{https://github.com/google-research/bert}{BERT} models.
 
+\section{AWS}
+\href{https://docs.aws.amazon.com/cloudwatch/index.html}{CloudWatch}
+
+Identity and Access Management (IAM)
+
+We need to register with \textbf{CloudWatch} events.
+
+Taking advantage:
+\href{https://aws.amazon.com/blogs/compute/taking-advantage-of-amazon-ec2-spot-instance-interruption-notices/}{here}.
+
+Do we need \textbf{Amazon Virtual Private Cloud}?
+\begin{itemize}
+    \item Just to clarify this question, we are already running inside of a VPC
+\end{itemize}
+
+\url{https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-interruptions.html}
+
+
+\includestandalone{../figures/aws-availability-2020-10-21-to-2020-10-28}
+
+\texttt{p2.xlarge} instance type in zone \texttt{us-east-1d} from Oct. 21 to 28.
+
+\includestandalone{../figures/aws-availability-instances-2020-10-22}
+
+
+\section{Instances}
+\vspace{-2em}
+\begin{table}
+  \begin{tabular}{|l|l|l|}
+    \textbf{Instance Type} & \textbf{GPU} & \textbf{NCCL Support?} \\
+    p2 & K80 & No \\
+    g4dn & T4 & Yes \\
+    p3 & V100 & Yes \\
+    p4 & A100 & Yes
+  \end{tabular}
+\end{table}
+
 \section{Synthetic Scalability Tests}
 For these tests, I ran the standard Horovod synthetic benchmakr tests for
 the ResNet50 model.
