@@ -1,0 +1,23 @@
+\documentclass[crop,convert,tikz]{standalone}
+\usetikzlibrary{datavisualization}
+\usetikzlibrary{fpu}
+\begin{document}
+\begin{tikzpicture}
+  \datavisualization[
+    scientific axes=clean,
+    x axis={
+      include value=0,
+      label={Time (s)},
+      attribute=x,
+    },
+    y axis={
+      label={Validation Acc},
+      attribute=y,
+      include value=0,
+      ticks=many,
+    },
+    visualize as line,
+  ]
+  data [headline={x,y}, read from file={../../data/horovod-4xp2.xlarge-tta-curves/test-tta.csv}];
+\end{tikzpicture}
+\end{document}

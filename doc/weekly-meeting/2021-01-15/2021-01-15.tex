@@ -12,21 +12,28 @@
   \setcounter{framenumber}{0}
 
   \begin{frame}
-    \frametitle{Fault Model Updates}
+    \frametitle{Previous Meeting}
 
-    Updates about the fault model if we are able to get any
     \begin{itemize}
-      \item Low priority
-      \item Can hopefully be done \textbf{while} running the
-        Horovod Elastic experiments
+      \item Updated fault model experiments (in progress)
+      \item Comparing Horovod Elastic with standard Horovod
     \end{itemize}
+  \end{frame}
 
+  \begin{frame}
+    \begin{center}
+      \includestandalone[scale=1.25]{../../figures/horovod-4xp2xlarge-tta}
+    \end{center}
   \end{frame}
 
   \begin{frame}
     \frametitle{Horovod Experiment Overview}
 
-    Describe the experiments we did this week
+    Run pre-training benchmark comparing Elastic vs Non-Elastic
+    \begin{itemize}
+      \item Generated Time-To-Accuracy curves for each
+      \item Understand impact of preemptions
+    \end{itemize}
   \end{frame}
 
   \begin{frame}
