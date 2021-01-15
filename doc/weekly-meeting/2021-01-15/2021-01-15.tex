@@ -21,45 +21,95 @@
   \end{frame}
 
   \begin{frame}
-    \begin{center}
-      \includestandalone[scale=1.25]{../../figures/horovod-4xp2xlarge-tta}
-    \end{center}
+    \frametitle{Design Questions to Answer}
+
+    Should we pivot to Model Parallelism?
+    \begin{itemize}
+      \item Provides a richer set of problems to investigate
+      \item Data Parallelism on spot instances potentially already supported
+    \end{itemize}
+
+    \vspace{2em}
+    We plan to use our Horovod Elastic experiments to answer this
+    \begin{itemize}
+      \item Do existing systems incur excessive overhead using just DP?
+      \item Are there simple engineering solutions to these problems?
+    \end{itemize}
   \end{frame}
 
   \begin{frame}
     \frametitle{Horovod Experiment Overview}
 
-    Run pre-training benchmark comparing Elastic vs Non-Elastic
+    Run training for ResNet on CIFAR-100 to convergence
     \begin{itemize}
+      \item Compare elastic version and on-demand version
       \item Generated Time-To-Accuracy curves for each
       \item Understand impact of preemptions
+    \end{itemize}
+
+    \vspace{2em}
+    Switched to CIFAR from ImageNet to minimize performanc volatility
+    \begin{itemize}
+      \item NFS caused high variance due to network
+      \item Downloading local copy took > 20 min
     \end{itemize}
   \end{frame}
 
   \begin{frame}
     \frametitle{Elastic vs On-Demand Comparison}
 
-    Compare the results of Elastic and On-Demand runs
+    So far have collected time-to-accuracy curves
     \begin{itemize}
-      \item Compare accuracy
-      \item Compare performance
+      \item Used 4 p2.xlarge instances for both
+      \item Experienced 2 preemptions in the Elastic case
+      \item Results available on Tensorboard
+    \end{itemize}
+
+    \vspace{2em}
+    High level effects of instance joins:
+    \begin{itemize}
+      \item Average epoch time (s): 96
+      \item Epoch times with joins (s): 316, 295, 252
+      \item Epoch times with removals (s): 160
+    \end{itemize}
+
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Design Question Follow-up}
+
+    Pivot to Model Parallelism?
+    \begin{itemize}
+      \item Potenital room for improvement with DP alone
+      \item Results need to be investigated this week (still preliminary!)
     \end{itemize}
   \end{frame}
 
   \begin{frame}
-    \frametitle{Comparison Breakdown}
+    \frametitle{Goals this Week}
 
-    Compare the specifics of the results
+    High Level Goal: Make decision about design focus
+
+    \vspace{2em}
+    TODO:
     \begin{itemize}
-      \item If slowdown was it caused by reconfiguration?
-      \item If accuracy decreased what caused it?
+      \item In-depth profiling of Horovod Elastic
+      \begin{itemize}
+        \item What causes long epoch times?
+        \item What caused lower convergence accuracy?
+      \end{itemize}
+
+      \item Use ImageNet with partitioning
+      \begin{itemize}
+        \item Pre-training benchmarks are our target
+      \end{itemize}
+
+      \item Get representative trace of preemptions
+      \begin{itemize}
+        \item Simulate preemption/availability for reproducibility
+      \end{itemize}
+    
     \end{itemize}
-
-    \vspace{1em}
-    What can this tell us about our system design?
-
-    \vspace{1em}
-    \textbf{Hopefully we can get to this...}
   \end{frame}
 
 \end{document}
