@@ -23,7 +23,13 @@ GPU servers.
 
 \citeshortsummary{Resource Elasticity in Distributed Deep Learning}{mlsys/2020/or}
 
-\noindent \tagdynamic{}
+\noindent \tagdynamic{} \tagdataparallelism{}
+Builds on top of Horovod Elastic.
+Main contribution is a scaling heuristic to determine the best number of
+servers to improve resource utilization.
+Also added some systems level optimizations to make adding and removing nodes
+from the cluster not incur high overhead.
+
 
 \citeshortsummary{DeepSpeed}{kdd/2020/rasley}
 
@@ -42,6 +48,13 @@ TODO.
 \citeshortsummary{Speeding up Deep Learning with Transient Servers}{corr/abs-1903-00045}
 
 \noindent \tagdynamic{} \tagdataparallelism{}
+This paper doesn't develop a new system but does an analysis of GCE's
+preemptable instances as well as their effect on Deep Learning.
+Specifically it measures the preemption frequency for different nodes and
+highlights the challenges (decreased accuracy) and potential benefits
+(better performance per dollar).
+It also propses a simple technique to make a dynamic cluster adjust to the
+addition and removal of nodes.
 
 \citeshortsummary{Tributary}{usenix-atc/2018/harlap}
 
@@ -69,7 +82,13 @@ Suggestion to try.
 
 \citeshortsummary{Horovod}{corr/abs-1802-05799}
 
-Uber's system.
+\noindent \tagdynamic{} \tagdataparallelism{} \tagtransient{}
+Horovod is one of the state of the art distributed ML frameworks.
+It provides a wrapper around TF, PyTorch, or MXNet to distribute the
+computation graph of a Neural Network and perform efficient all-reduce during
+backpropagation using NCCL.
+Our focus will be on \textbf{Horovod Elastic}, which could be used as a baseline system
+to compare as it provides support for dynamic clusters such as spot instances.
 
 \citeshortsummary{PipeDream}{sosp/2019/narayanan}
 
