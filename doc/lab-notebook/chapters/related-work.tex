@@ -1,9 +1,15 @@
 \chapter{Related Work}
 \label{ch:related work}
 
-\section{Dynamic Clusters}
+We use the following tags: \tagdynamic{}, \tagtransient{}, \tagmodelparallelism{}, \tagdataparallelism{}.
 
-\citesubsection{Proteus}{eurosys/2017/harlap}
+\section{Short Summaries}
+
+\subsection{Dynamic Clusters}
+
+\citeshortsummary{Proteus}{eurosys/2017/harlap}
+
+\noindent \tagdynamic{} \tagdataparallelism{}
 
 Proteus is a baseline to our work.
 There are two main differences.
@@ -14,41 +20,46 @@ If servers are added or removed, it'll restart the iteration.
 Their evaluation was only on CPU transient servers, we may have challenges with
 GPU servers.
 
-\section{Spot Instances}
+\subsection{Transient Instances}
 
-\citesubsection{Analysis and Exploitation (2020)}{dispa/2020/narayanan}
+\citeshortsummary{Analysis and Exploitation (2020)}{dispa/2020/narayanan}
+\tagdynamic{} \tagdataparallelism{}
 
-\url{https://github.com/stanford-futuredata/training_on_a_dime}
+\noindent \textbf{Code:} \url{https://github.com/stanford-futuredata/training_on_a_dime}
 
-\citesubsection{Exploratory Study for ML}{corr/abs-1903-00045}
+TODO.
 
-\citesubsection{Tributary}{usenix-atc/2018/harlap}
+\citeshortsummary{Speeding up Deep Learning with Transient Servers}{corr/abs-1903-00045}
+
+\noindent \tagdynamic{} \tagdataparallelism{}
+
+\citeshortsummary{Tributary}{usenix-atc/2018/harlap}
 
 This paper basically describes using ML to determine spot instance strategies
 for distributing a CPU task.
 
-\citesubsection{Flint}{eurosys/2016/sharma}
+\citeshortsummary{Flint}{eurosys/2016/sharma}
 
 An extension to Spark.
 Figure 2 shows the CDF of server availability, this data is from 2016.
 
-\section{Optimizer}
+\subsection{Optimizer}
 
-\citesubsection{Willump}{mlsys/2020/kraft}
+\citeshortsummary{Willump}{mlsys/2020/kraft}
 
-\section{Distributed ML}
+\subsection{Distributed ML}
 
-\citesubsection{Mesh-TensorFlow}{nips/2018/shazeer}
+\citeshortsummary{Mesh-TensorFlow}{nips/2018/shazeer}
 
 Suggestion to try.
 
-\citesubsection{Horovod}{corr/abs-1802-05799}
+\citeshortsummary{Horovod}{corr/abs-1802-05799}
 
 Uber's system.
 
-\citesubsection{PipeDream}{sosp/2019/narayanan}
+\citeshortsummary{PipeDream}{sosp/2019/narayanan}
 
-\citesubsection{Analysis of 3 Systems}{concurrency/2019/kurth}
+\citeshortsummary{Analysis of 3 Systems}{concurrency/2019/kurth}
 
 \begin{itemize}
   \item \textbf{Horovod}
@@ -65,39 +76,39 @@ Uber's system.
 \end{itemize}
 
 
-\section{Dynamic Scheduling}
+\subsection{Dynamic Scheduling}
 
-\citesubsection{AntMan}{osdi/2020/xiao}
+\citeshortsummary{AntMan}{osdi/2020/xiao}
 
-\citesubsection{Fault Tolerance}{icml/2019/qiao}
+\citeshortsummary{Fault Tolerance}{icml/2019/qiao}
 
-\citesubsection{Pollux}{corr/abs-2008-12260}
+\citeshortsummary{Pollux}{corr/abs-2008-12260}
 
-\section{Heterogeneous Clusters}
+\subsection{Heterogeneous Clusters}
 
-\citesubsection{Gavel}{osdi/2020/narayanan}
+\citeshortsummary{Gavel}{osdi/2020/narayanan}
 
 \url{https://github.com/stanford-futuredata/gavel}
 
-\citesubsection{BytePS}{osdi/2020/jiang}
+\citeshortsummary{BytePS}{osdi/2020/jiang}
 
 \url{https://github.com/bytedance/byteps}
 
-\citesubsection{Bytescheduler}{sosp/2019/peng}
+\citeshortsummary{Bytescheduler}{sosp/2019/peng}
 
 The authors expanded this work to create BytePS \cite{osdi/2020/jiang}.
 
-\section{Sublinear Memory}
+\subsection{Sublinear Memory}
 
-\citesubsection{Chen (2016)}{corr/abs-1604-06174}
+\citeshortsummary{Chen (2016)}{corr/abs-1604-06174}
 
-\citesubsection{Echo}{isca/2020/zheng}
+\citeshortsummary{Echo}{isca/2020/zheng}
 
-\citesubsection{Checkmate}{mlsys/2020/jain}
+\citeshortsummary{Checkmate}{mlsys/2020/jain}
 
-\section{Approximation}
+\subsection{Approximation}
 
-\citesubsection{ApproxHadoop}{asplos/2015/goiri}
+\citeshortsummary{ApproxHadoop}{asplos/2015/goiri}
 
 \emph{Main Idea:} Incorporates statistical approximation techniques into
 Hadoop to allow for increased performance while providing guarantees about

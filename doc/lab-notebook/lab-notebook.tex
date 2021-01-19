@@ -14,6 +14,8 @@
 \usepackage{tikz}
 \usepackage{varioref}
 
+\usetikzlibrary{datavisualization}
+
 \stdpunctuation
 \addbibresource{../references/unsorted.bib}
 
@@ -21,17 +23,6 @@
 
 \pgfplotsset{
   compat=1.17,
-}
-
-\newcommand{\project}{``Project Pactum''}
-
-\newcommand{\reffig}[1]{Figure~\vref{fig:#1}}
-\newcommand{\reflst}[1]{Listing~\vref{lst:#1}}
-\newcommand{\refsec}[1]{Section~\vref{sec:#1}}
-\newcommand{\reftbl}[1]{Table~\vref{tbl:#1}}
-
-\newcommand{\citesubsection}[2]{
-  \subsection[#1]{#1 \cite{#2}}
 }
 
 \definecolor{solarizedYellow}{RGB}{181, 137, 0}
@@ -43,7 +34,22 @@
 \definecolor{solarizedCyan}{RGB}{42, 161, 152}
 \definecolor{solarizedGreen}{RGB}{133, 153, 0}
 
-\usetikzlibrary{datavisualization}
+\newcommand{\project}{``Project Pactum''}
+
+\newcommand{\reffig}[1]{Figure~\vref{fig:#1}}
+\newcommand{\reflst}[1]{Listing~\vref{lst:#1}}
+\newcommand{\refsec}[1]{Section~\vref{sec:#1}}
+\newcommand{\reftbl}[1]{Table~\vref{tbl:#1}}
+
+\newcommand{\citeshortsummary}[2]{
+  \subsubsection[#1]{#1 \cite{#2}}
+}
+
+\newcommand{\tag}[2]{\tikz[baseline=(tag.base)]{\node [font=\sffamily, rounded corners, fill=#2] (tag) {#1};}}
+\newcommand{\tagdynamic}{\tag{Dynamic}{solarizedGreen}}
+\newcommand{\tagtransient}{\tag{Transient}{solarizedYellow}}
+\newcommand{\tagmodelparallelism}{\tag{Model Parallelism}{solarizedBlue}}
+\newcommand{\tagdataparallelism}{\tag{Data Parallelism}{solarizedCyan}}
 
 \title{{\Huge \sffamily \project{}}
        \\
@@ -54,6 +60,8 @@
   Jonathan Eyolfson
   \and
   John Thorpe
+  \and
+  Shen Teng
 }
 \date{}
 
