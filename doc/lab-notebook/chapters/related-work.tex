@@ -1,7 +1,8 @@
 \chapter{Related Work}
 \label{ch:related work}
 
-We use the following tags: \tagdynamic{}, \tagtransient{}, \tagmodelparallelism{}, \tagdataparallelism{}.
+We use the following tags: \tagdynamic{}, \tagtransient{},
+\tagmodelparallelism{}, \tagdataparallelism{}, and \tagoptimizer{}.
 
 \section{Short Summaries}
 
@@ -20,9 +21,13 @@ If servers are added or removed, it'll restart the iteration.
 Their evaluation was only on CPU transient servers, we may have challenges with
 GPU servers.
 
+\citeshortsummary{DeepSpeed}{kdd/2020/rasley}
+
+\noindent \tagdynamic{}
+
 \subsection{Transient Instances}
 
-\citeshortsummary{Analysis and Exploitation (2020)}{dispa/2020/narayanan}
+\citeshortsummary{Analysis and Exploitation of Dynamic Pricing (2020)}{dispa/2020/narayanan}
 \tagdynamic{} \tagdataparallelism{}
 
 \noindent \textbf{Code:} \url{https://github.com/stanford-futuredata/training_on_a_dime}
@@ -45,6 +50,10 @@ Figure 2 shows the CDF of server availability, this data is from 2016.
 
 \subsection{Optimizer}
 
+\citeshortsummary{ZeRO}{corr/abs-1910-02054}
+
+\noindent \tagoptimizer{}
+
 \citeshortsummary{Willump}{mlsys/2020/kraft}
 
 \subsection{Distributed ML}
@@ -59,7 +68,9 @@ Uber's system.
 
 \citeshortsummary{PipeDream}{sosp/2019/narayanan}
 
-\citeshortsummary{Analysis of 3 Systems}{concurrency/2019/kurth}
+\citeshortsummary{TensorFlow at Scale}{concurrency/2019/kurth}
+
+This paper does an analysis of three systems.
 
 \begin{itemize}
   \item \textbf{Horovod}
