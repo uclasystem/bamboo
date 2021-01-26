@@ -1,0 +1,27 @@
+\chapter{AWS}
+\label{chap:aws}
+
+\begin{lstlisting}
+sudo apt update
+sudo apt upgrade
+sudo useradd -m jon
+sudo usermod -s /bin/bash jon
+\end{lstlisting}
+
+Add the following to \texttt{/etc/sudoers} with \texttt{sudo visudo}:
+
+\begin{lstlisting}
+# Custom rules
+jon ALL=(ALL) NOPASSWD:ALL
+\end{lstlisting}
+
+Switch to your user with \texttt{sudo -u jon -i}.
+
+\begin{lstlisting}
+mkdir .ssh
+# Create .ssh/authorized_keys
+chmod 600 .ssh/authorized_keys
+
+# Clean up ubuntu user files
+sudo rm -rf /home/ubuntu/.sudo_as_admin_successful /home/ubuntu/.ssh /home/ubuntu/.cache /home/ubuntu/.bash_history
+\end{lstlisting}
