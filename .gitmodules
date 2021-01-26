@@ -1,0 +1,3 @@
+[submodule "external/deepspeed"]
+	path = external/deepspeed
+	url = https://github.com/microsoft/DeepSpeed.git
