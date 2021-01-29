@@ -25,3 +25,20 @@ chmod 600 .ssh/authorized_keys
 # Clean up ubuntu user files
 sudo rm -rf /home/ubuntu/.sudo_as_admin_successful /home/ubuntu/.ssh /home/ubuntu/.cache /home/ubuntu/.bash_history
 \end{lstlisting}
+
+Install required packages:
+
+\begin{lstlisting}
+sudo apt install nvidia-headless-460
+sudo apt install nvidia-utils-460
+sudo apt install python-is-python3
+sudo apt install python3-pip
+sudo apt install nvidia-cuda-toolkit
+pip3 install torch==1.7.1+cu101 torchvision==0.8.2+cu101 torchaudio==0.7.2 -f https://download.pytorch.org/whl/torch_stable.html
+pip3 install tensorboardX
+pip3 install matplotlib
+sudo apt install libopenmpi3
+pip3 install mpi4py
+sudo apt install ninja-build
+pip3 install ninja
+\end{lstlisting}
