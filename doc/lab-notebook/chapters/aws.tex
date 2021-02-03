@@ -41,4 +41,22 @@ sudo apt install libopenmpi3
 pip3 install mpi4py
 sudo apt install ninja-build
 pip3 install ninja
+
+pip3 install tdqm
+pip3 install boto3
+pip3 install h5py
+\end{lstlisting}
+
+You should add the following to \texttt{.bashrc}:
+
+\begin{lstlisting}
+export PYTHONPATH=/home/project-pactum/src/external/deepspeed
+export PATH=/home/project-pactum/src/external/deepspeed/bin:$PATH
+\end{lstlisting}
+
+
+You can then try examples:
+
+\begin{lstlisting}
+deepspeed cifar10_deepspeed.py --deepspeed_config ds_config.json
 \end{lstlisting}
