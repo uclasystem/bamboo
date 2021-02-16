@@ -1,7 +1,11 @@
 import argparse
 import functools
+import importlib
 import logging
+import pkgutil
 import subprocess
+
+import project_pactum
 
 class ProjectPactumFormatter(logging.Formatter):
 
@@ -16,129 +20,27 @@ class ProjectPactumFormatter(logging.Formatter):
 		formatter = logging.Formatter(fmt.format(color=COLORS[record.levelno]))
 		return formatter.format(record)
 
-def core_add_arguments(parser):
+def parse(args):
+	parser = argparse.ArgumentParser(prog='project_pactum',
+	                                 description='Project Pactum')
+
 	from project_pactum import VERSION
 	parser.add_argument('--version', action='version',
 	                    version='Project Pactum {}'.format(VERSION))
-	parser.add_argument('--daemonize', action='store_true')
-
-def aws_add_arguments(parser):
-	subparsers = parser.add_subparsers(metavar='command')
-
-	from project_pactum.aws.command import test_command
-	test_parser = subparsers.add_parser('test', help=None)
-	test_parser.set_defaults(command=test_command)
-
-	from project_pactum.aws.command import add_command
-	add_parser = subparsers.add_parser('add', help=None)
-	add_parser.set_defaults(command=add_command)
-
-	from project_pactum.aws.command import cloudwatch_command
-	cloudwatch_parser = subparsers.add_parser('cloudwatch', help=None)
-	cloudwatch_parser.set_defaults(command=cloudwatch_command)
-
-	from project_pactum.aws.command import list_command
-	list_parser = subparsers.add_parser('list', help=None)
-	list_parser.set_defaults(command=list_command)
-
-	from project_pactum.aws.command import terminate_command
-	terminate_parser = subparsers.add_parser('terminate', help=None)
-	terminate_parser.set_defaults(command=terminate_command)
-	terminate_parser.add_argument('instance_ids', metavar='instance-id', nargs='+')
-
-def check_add_arguments(parser):
-	subparsers = parser.add_subparsers(metavar='command')
-
-	from project_pactum.check.command import version_command
-	version_parser = subparsers.add_parser('version', help=None)
-	version_parser.set_defaults(command=version_command)
-
-def control_add_arguments(parser):
-	subparsers = parser.add_subparsers(metavar='command')
-
-	from project_pactum.daemon.command import list_command
-	list_parser = subparsers.add_parser('list', help=None)
-	list_parser.set_defaults(command=list_command)
-
-	from project_pactum.daemon.command import test_command
-	test_parser = subparsers.add_parser('test', help=None)
-	test_parser.set_defaults(command=test_command)
-
-def dataset_add_arguments(parser):
-	from project_pactum.dataset.command import add_command, list_command, remove_command
-	subparsers = parser.add_subparsers(metavar='command')
-
-	add_parser = subparsers.add_parser('add', help=None)
-	add_parser.set_defaults(command=add_command)
-	add_parser.add_argument('datasets', nargs='+')
-
-	list_parser = subparsers.add_parser('list', help=None)
-	list_parser.set_defaults(command=list_command)
-
-	remove_parser = subparsers.add_parser('remove', help=None)
-	remove_parser.set_defaults(command=remove_command)
-	remove_parser.add_argument('datasets', nargs='+')
-
-def daemon_add_arguments(parser):
-	from project_pactum.daemon.command import main_command
-
-	parser.set_defaults(command=main_command)
-	parser.add_argument('--debug', action='store_true')
-	parser.add_argument('--count', type=int, default=8)
-	parser.add_argument('--instance-type', type=str, default='p2.xlarge')
-	parser.add_argument('--zone', type=str, default='us-east-1d')
-
-def experiment_add_arguments(parser):
-	subparsers = parser.add_subparsers(metavar='command')
-
-	from project_pactum.experiment.command import aws_availability_command
-	aws_availability_parser = subparsers.add_parser('aws-availability', help=None)
-	aws_availability_parser.set_defaults(command=aws_availability_command)
-	aws_availability_parser.add_argument('--skip-monitor', action='store_true')
-	aws_availability_parser.add_argument('--analyze-daily', action='store_true')
-
-	from project_pactum.experiment.command import test_command
-	test_parser = subparsers.add_parser('test', help=None)
-	test_parser.set_defaults(command=test_command)
-
-	from project_pactum.experiment.command import tutorial_mnist_command
-	tutorial_mnist_parser = subparsers.add_parser('tutorial-mnist', help=None)
-	tutorial_mnist_parser.set_defaults(command=tutorial_mnist_command)
-	tutorial_mnist_parser.add_argument('--worker-index', type=int, default=0)
-
-	from project_pactum.experiment.command import imagenet_pretrain_command
-	imagenet_parser = subparsers.add_parser('imagenet-pretrain', help=None)
-	imagenet_parser.set_defaults(command=imagenet_pretrain_command)
-	imagenet_parser.add_argument('--cluster-size', type=int, default=1)
-	imagenet_parser.add_argument('--instance-type', type=str, default='p2.xlarge')
-	imagenet_parser.add_argument('--ngpus', type=int, default=1)
-	imagenet_parser.add_argument('--az', type=str, default=None)
-	imagenet_parser.add_argument('--epochs', type=int, default=1)
-
-def parse(args):
-	parser = argparse.ArgumentParser(prog='project_pactum',
-									 description='Project Pactum')
-	core_add_arguments(parser)
 
 	subparsers = parser.add_subparsers(metavar='command', dest='command_name')
 
-	aws_parser = subparsers.add_parser('aws', help=None)
-	aws_add_arguments(aws_parser)
+	for module_info in pkgutil.iter_modules(project_pactum.__path__):
+		if not module_info.ispkg:
+			continue
+		full_module_name = 'project_pactum.{}.command'.format(module_info.name)
+		try:
+			module = importlib.import_module(full_module_name)
+		except ModuleNotFoundError as e:
+			continue
 
-	check_parser = subparsers.add_parser('check', help=None)
-	check_add_arguments(check_parser)
-
-	control_parser = subparsers.add_parser('control', help=None)
-	control_add_arguments(control_parser)
-
-	dataset_parser = subparsers.add_parser('dataset', help=None)
-	dataset_add_arguments(dataset_parser)
-
-	daemon_parser = subparsers.add_parser('daemon', help=None)
-	daemon_add_arguments(daemon_parser)
-
-	experiment_parser = subparsers.add_parser('experiment', help=None)
-	experiment_add_arguments(experiment_parser)
+		subparser = subparsers.add_parser(module_info.name, help=module.HELP)
+		module.add_arguments(subparser)
 
 	return parser.parse_args(args)
 
@@ -163,20 +65,6 @@ def setup_logging():
 	logging.getLogger('boto3.resources.model').setLevel(logging.WARNING)
 
 	logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
-
-	logging.getLogger('PidFile').setLevel(logging.WARNING)
-
-	logging.getLogger('absl').setLevel(logging.WARNING)
-	logging.getLogger('tensorflow').setLevel(logging.WARNING)
-
-	import os
-	os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-
-def setup_tensorflow():
-	import tensorflow as tf
-	gpus = tf.config.list_physical_devices('GPU')
-	for gpu in gpus:
-		tf.config.experimental.set_memory_growth(gpu, True)
 
 @functools.wraps(subprocess.run)
 def run(args, **kwargs):

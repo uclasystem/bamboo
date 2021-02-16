@@ -56,6 +56,7 @@ def run(options):
 
         # Select the first instance to issue the run cmd
         print("Running imagenet")
+        raise RuntimeError('Pending removal')
         ret = leader.ssh_command(' '.join(['cd project-pactum;',
             '. .venv/bin/activate;', 'git pull;',
             'python -m project_pactum --daemonize',

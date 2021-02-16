@@ -1,7 +1,4 @@
 import os
-import subprocess
-
-from daemon import DaemonContext
 
 from project_pactum.core.version import get_version, get_python_version
 
@@ -18,8 +15,4 @@ def main(args):
 	setup(options)
 
 	if 'command' in options:
-		if options.daemonize:
-			with DaemonContext():
-				options.command(options)
-		else:
-			options.command(options)
+		options.command(options)

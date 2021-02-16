@@ -1,0 +1,34 @@
+\chapter{Code}
+\label{chap:code}
+
+Launch the daemon:
+
+\noindent \lstinline|python -m project_pactum daemon|
+
+Write decisions here.
+
+\section{Conventions}
+
+\subsection{Adding New Commands}
+
+\begin{enumerate}
+  \item Create a new module in the \lstinline|project_pactum| module (e.g. \lstinline|newcommand|)
+  \item Create a new source file called \lstinline|command.py| (e.g. \lstinline|project_pactum/newcommand/command.py|)
+  \item Create the following within \lstinline|command.py|:
+    \begin{itemize}
+      \item \lstinline|HELP| string with the help message
+      \item \lstinline|add_arguments(parser)| function to add arguments to the parser
+      \item \lstinline|handle(options)| function run the command
+    \end{itemize}
+\end{enumerate}
+
+\section{Experiments}
+
+\begin{itemize}
+  \item \lstinline|aws_availability| {\color{solarizedRed}(remove)}
+  \item \lstinline|pytorch_imagenet_resnet50| {\color{solarizedRed}(remove)}
+  \item \lstinline|instance| {\color{solarizedRed}(remove)}
+  \item \lstinline|pytorch_imagenet_resnet50| {\color{solarizedRed}(remove)}
+  \item \lstinline|test| {\color{solarizedRed}(remove)}
+  \item \lstinline|tutorial_mnist| {\color{solarizedRed}(remove)}
+\end{itemize}

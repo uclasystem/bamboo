@@ -48,15 +48,22 @@ pip3 install h5py
 sudo apt install pdsh
 sudo apt install llvm
 sudo apt install cmake
+sudo apt install python3-venv
+sudo apt install systemd-container
 \end{lstlisting}
 
 You should add the following to \texttt{.bashrc}:
 
 \begin{lstlisting}
-export PYTHONPATH=/home/project-pactum/src/external/deepspeed
-export PATH=/home/project-pactum/src/external/deepspeed/bin:$PATH
+export PYTHONPATH="/home/project-pactum/src/external/deepspeed${PYTHONPATH:+:$PYTHONPATH}"
+export PATH="/home/project-pactum/src/external/deepspeed/bin:$PATH"
 \end{lstlisting}
 
+To properly start a shell, use:
+
+\begin{lstlisting}
+sudo machinectl shell --uid=project-pactum
+\end{lstlisting}
 
 You can then try examples:
 

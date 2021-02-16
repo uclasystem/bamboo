@@ -19,7 +19,7 @@ First, create the virtual environment:
     python -m venv --system-site-packages venv
     source venv/bin/activate
     pip install -U pip
-    pip install python-daemon pid
+    pip install -r requirements.txt
 
 For the documentation you may want to create a `~/.latexmkrc` file containing
 the following (this example uses Evince):
