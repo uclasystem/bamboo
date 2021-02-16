@@ -5,9 +5,6 @@ import project_pactum
 from collections import OrderedDict
 from deepspeed.launcher.runner import encode_world_info
 
-SSH_USERNAME = 'project-pactum'
-SSH_KEY = '/home/jon/.ssh/id_rsa-project-pactum'
-
 class DeepspeedState:
 
 	def __init__(self):
@@ -38,6 +35,9 @@ class DeepspeedState:
 	def add(self):
 		if self.processes:
 			return 'Job already running'
+
+		SSH_USERNAME = project_pactum.settings.SSH_USERNAME
+		SSH_KEY = project_pactum.settings.SSH_KEY
 
 		public_ips = ['3.239.49.200', '3.236.113.34']
 		# public_ips = ['3.239.49.200']

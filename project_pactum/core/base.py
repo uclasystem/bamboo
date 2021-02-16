@@ -66,6 +66,11 @@ def setup_logging():
 
 	logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 
+def setup_settings():
+	from project_pactum.core.settings import Settings
+	settings = Settings()
+	setattr(project_pactum, 'settings', settings)
+
 @functools.wraps(subprocess.run)
 def run(args, **kwargs):
 	logger = logging.getLogger('project_pactum.run')
@@ -75,6 +80,7 @@ def run(args, **kwargs):
 
 def setup(options):
 	setup_logging()
+	setup_settings()
 
 	if options.command_name == 'dataset':
 		from project_pactum.dataset.base import setup_datasets
