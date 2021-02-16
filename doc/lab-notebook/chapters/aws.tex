@@ -49,7 +49,9 @@ sudo apt install pdsh
 sudo apt install llvm
 sudo apt install cmake
 sudo apt install python3-venv
-sudo apt install systemd-container
+sudo apt install systemd-container # for machinectl
+
+sudo apt install nfs-common
 \end{lstlisting}
 
 You should add the following to \texttt{.bashrc}:
@@ -69,4 +71,12 @@ You can then try examples:
 
 \begin{lstlisting}
 deepspeed cifar10_deepspeed.py --deepspeed_config ds_config.json
+\end{lstlisting}
+
+Create \lstinline|/mnt/ebs| directory.
+
+Add the following to \lstinline|/etc/fstab|:
+
+\begin{lstlisting}
+fs-c6015832.efs.us-east-1.amazonaws.com:/   /mnt/efs    nfs4    nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport 0   0
 \end{lstlisting}
