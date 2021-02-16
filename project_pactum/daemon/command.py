@@ -1,5 +1,7 @@
 import sys
 
+import project_pactum
+
 from daemon import DaemonContext
 from project_pactum.daemon import ClientDaemon, ServerDaemon
 
