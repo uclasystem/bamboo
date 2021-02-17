@@ -1,6 +1,19 @@
 \chapter{AWS}
 \label{chap:aws}
 
+\section{Running}
+
+Create a \lstinline|settings.py| in your \lstinline|project-pactum| directory with contains similar to:
+
+\begin{lstlisting}
+SSH_USERNAME = 'project-pactum'
+SSH_KEY = '/home/jon/.ssh/id_rsa-project-pactum'
+AWS_AMI_ID = 'ami-0ff1bfa214fd64310'
+AWS_NAME = 'Jon Good'
+\end{lstlisting}
+
+\section{Image Setup}
+
 \begin{lstlisting}
 sudo apt update
 sudo apt upgrade

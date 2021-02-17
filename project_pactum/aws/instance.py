@@ -1,26 +1,21 @@
 import boto3
-
 import re
 
-IMAGE_ID = 'ami-09696628562d9969d'
+import project_pactum
 
 def describe_instances(instance_ids):
 	ec2 = boto3.client('ec2')
 	return ec2.describe_instances(InstanceIds=instance_ids)
 
 def get_instances():
+	AWS_AMI_ID = project_pactum.settings.AWS_AMI_ID
+
 	instances = []
 
 	ec2 = boto3.client('ec2')
 	response = ec2.describe_instances()
 	for reservation in response['Reservations']:
 		for instance in reservation['Instances']:
-			if 'SpotInstanceRequestId' not in instance:
-				continue
-			if instance['ImageId'] != IMAGE_ID:
-				continue
-			if 'PublicIpAddress' not in instance:
-				continue
 			instances.append(instance)
 	return instances
 
@@ -55,8 +50,7 @@ def parse_run_instances_exception(s):
 	available_zones = m.group(4).split(', ')
 	raise InsufficientInstanceCapacity(available_zones, message)
 
-def create_instance(num_instances, instance_type, availability_zone=None,
-					image_id=IMAGE_ID):
+def create_instance(num_instances, instance_type, image_id, availability_zone=None):
 	ec2 = boto3.resource('ec2')
 	instances = []
 	args = {
@@ -96,9 +90,6 @@ def list_instances():
 	ec2 = boto3.resource('ec2')
 	for instance in ec2.instances.all():
 		print(instance.id)
-	# instances = get_instances()
-	# for instance_id in get_instance_ids():
-	# 	print(instance_id)
 
 def terminate_instances(instance_ids):
 	ec2 = boto3.resource('ec2')
