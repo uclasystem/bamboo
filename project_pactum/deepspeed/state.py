@@ -160,7 +160,7 @@ class DeepspeedState:
 				"deepspeed.launcher.launch",
 				f'--world_info={world_info_base64}',
 				f"--node_rank={i}",
-				f"--master_addr={private_ip}",
+				f"--master_addr={master_addr}",
 				"--master_port=29500",
 			]
 			gpt_deepspeed = deepspeed_launch + [
