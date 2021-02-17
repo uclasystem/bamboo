@@ -130,12 +130,19 @@ class DeepspeedState:
 		SSH_USERNAME = project_pactum.settings.SSH_USERNAME
 		SSH_KEY = project_pactum.settings.SSH_KEY
 
-		public_ips = ['44.192.25.254', '3.236.23.138']
-		private_ip = '172.31.70.66'
-
+		public_ips = []
 		active_resources = OrderedDict()
-		for public_ip in public_ips:
-			active_resources[public_ip] = [0]
+		for i, instance in enumerate(self.instances.values()):
+			private_ip = instance['PrivateIpAddress']
+			if i == 0:
+				master_addr = private_ip
+			# Assume one GPU per node right now, use InstanceType later
+			active_resources[private_ip] = [0]
+
+			public_ip = instance['PublicIpAddress']
+			public_ips.append(public_ip)
+		if not public_ips:
+			return 'No running instances'
 
 		world_info_base64 = encode_world_info(active_resources)
 
