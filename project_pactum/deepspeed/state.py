@@ -79,12 +79,14 @@ class DeepspeedState:
 		public_ips = []
 		active_resources = OrderedDict()
 		for i, instance in enumerate(self.instances.values()):
+			private_ip = instance['PrivateIpAddress']
 			if i == 0:
-				private_ip = instance['PrivateIpAddress']
+				master_addr = private_ip
+			# Assume one GPU per node right now, use InstanceType later
+			active_resources[private_ip] = [0]
+
 			public_ip = instance['PublicIpAddress']
 			public_ips.append(public_ip)
-			# Assume one GPU per node right now, use InstanceType later
-			active_resources[public_ip] = [0]
 		if not public_ips:
 			return 'No running instances'
 
@@ -103,7 +105,7 @@ class DeepspeedState:
 				"deepspeed.launcher.launch",
 				f'--world_info={world_info_base64}',
 				f"--node_rank={i}",
-				f"--master_addr={private_ip}",
+				f"--master_addr={master_addr}",
 				"--master_port=29500",
 			]
 			example_deepspeed =  deepspeed_launch + [
