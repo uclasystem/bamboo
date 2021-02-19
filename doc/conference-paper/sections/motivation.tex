@@ -1,4 +1,11 @@
 \section{Motivation}
 \label{sec:motivation}
 
-TODO.
+DeepSpeed has the following limitations:
+
+\begin{enumerate}
+  \item Failure in any node causes a deadlock
+  \item Requires manual termination of all nodes
+  \item Requires manual checkpointing
+  \item Requires manual restart
+\end{enumerate}
