@@ -1,3 +1,4 @@
 [submodule "external/deepspeed"]
 	path = external/deepspeed
-	url = https://github.com/microsoft/DeepSpeed.git
+	url = git@laforge.cs.ucla.edu:DeepSpeed
+	branch = project-pactum
