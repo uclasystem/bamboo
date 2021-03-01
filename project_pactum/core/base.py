@@ -55,6 +55,7 @@ def setup_logging():
 	logging.getLogger('botocore.endpoint').setLevel(logging.WARNING)
 	logging.getLogger('botocore.handlers').setLevel(logging.WARNING)
 	logging.getLogger('botocore.hooks').setLevel(logging.WARNING)
+	logging.getLogger('botocore.httpsession').setLevel(logging.WARNING)
 	logging.getLogger('botocore.loaders').setLevel(logging.WARNING)
 	logging.getLogger('botocore.parsers').setLevel(logging.WARNING)
 	logging.getLogger('botocore.retryhandler').setLevel(logging.WARNING)

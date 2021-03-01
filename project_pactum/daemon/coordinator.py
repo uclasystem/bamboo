@@ -7,7 +7,7 @@ import threading
 import project_pactum
 
 from project_pactum.aws.cloudwatch import get_latest_timestamp, get_all_log_events
-from project_pactum.aws.instance import create_instance, terminate_instances, describe_instances
+from project_pactum.aws.instance import create_instance, terminate_instances
 
 class Coordinator:
 
@@ -110,8 +110,9 @@ class Coordinator:
 		if not self.running:
 			return
 
+                raise RuntimeError('TODO: Refactor with get_instances()')
 		finished_instances = []
-		response = describe_instances(self.active_servers)
+		# response = describe_instances(self.active_servers)
 		for res in response['Reservations']:
 			for instance in res['Instances']:
 				state = instance['State']['Name']

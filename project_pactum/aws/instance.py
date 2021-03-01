@@ -3,16 +3,15 @@ import re
 
 import project_pactum
 
-def describe_instances(instance_ids):
-	ec2 = boto3.client('ec2')
-	return ec2.describe_instances(InstanceIds=instance_ids)
-
 def get_instances():
+	AWS_ACCESS_KEY_ID = project_pactum.settings.AWS_ACCESS_KEY_ID
+	AWS_SECRET_ACCESS_KEY = project_pactum.settings.AWS_SECRET_ACCESS_KEY
 	AWS_AMI_ID = project_pactum.settings.AWS_AMI_ID
+	AWS_REGION = project_pactum.settings.AWS_REGION
 
 	instances = []
 
-	ec2 = boto3.client('ec2')
+	ec2 = boto3.client('ec2', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY, region_name=AWS_REGION)
 	response = ec2.describe_instances()
 	for reservation in response['Reservations']:
 		for instance in reservation['Instances']:
