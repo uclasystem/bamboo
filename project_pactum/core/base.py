@@ -36,8 +36,8 @@ def parse(args):
 		if not module_info.ispkg:
 			continue
 		name = module_info.name
-		# if name in ['core']:
-		# 	continue
+		if name in ['core']:
+			continue
 		full_module_name = 'project_pactum.{}.command'.format(name)
 		try:
 			module = importlib.import_module(full_module_name)
