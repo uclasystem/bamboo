@@ -14,6 +14,10 @@ class DeepspeedState:
 
 	def instance_heartbeat(self, name):
 		current_instances = {}
+		# Preserve any localhost instances
+		for k, v in self.instances.items():
+			if k == 'localhost':
+				current_instances[k] = v
 		for instance in project_pactum.aws.instance.get_instances():
 			if 'PublicIpAddress' not in instance:
 				continue
@@ -38,6 +42,16 @@ class DeepspeedState:
 			self.removed_instances_listener(removed_instances)
 		self.instances = current_instances
 
+	def add_local_instance(self):
+		local_instance = {
+			'localhost': {
+				'PublicIpAddress': '127.0.0.1',
+				'PrivateIpAddress': '127.0.0.1',
+                         },
+		}
+		self.added_instances_listener(local_instance)
+		self.instances.update(local_instance)
+		return 'Added local instance'
 
 	def added_instances_listener(self, instance_ids):
 		pass
@@ -50,7 +64,7 @@ class DeepspeedState:
 
 		failed = False
 
-				# Reverse the list so we can remove elements while iterating
+		# Reverse the list so we can remove elements while iterating
 		for process in reversed(self.processes):
 			returncode = process.poll()
 			if returncode is None:
@@ -75,6 +89,7 @@ class DeepspeedState:
 
 		SSH_USERNAME = project_pactum.settings.SSH_USERNAME
 		SSH_KEY = project_pactum.settings.SSH_KEY
+		DEEPSPEED_DIR = project_pactum.settings.DEEPSPEED_DIR
 
 		public_ips = []
 		active_resources = OrderedDict()
@@ -93,9 +108,9 @@ class DeepspeedState:
 		world_info_base64 = encode_world_info(active_resources)
 
 		for i, public_ip in enumerate(public_ips):
-			example_path = '/home/project-pactum/src/external/deepspeed/DeepSpeedExamples/cifar'
+			example_path = DEEPSPEED_DIR / 'DeepSpeedExamples' / 'cifar'
 			deepspeed_launch = [
-				'export PYTHONPATH=/home/project-pactum/src/external/deepspeed',
+				f'export PYTHONPATH={DEEPSPEED_DIR}',
 				"&&",
 				"cd {}".format(example_path),
 				"&&",
