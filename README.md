@@ -40,3 +40,9 @@ build and run the following:
 This command will recompile the LaTeX file as many times as needed and open it
 in your preferred PDF viewer. For modifications keep this command running, and
 the document recompiles automatically.
+
+## Dependencies
+
+For Arch Linux you need to install:
+
+    sudo pacman -S python-daemon python-psutil
