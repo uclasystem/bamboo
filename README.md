@@ -45,4 +45,4 @@ the document recompiles automatically.
 
 For Arch Linux you need to install:
 
-    sudo pacman -S python-daemon python-psutil
+    sudo pacman -S python-daemon python-ninja python-psutil
