@@ -1,0 +1,40 @@
+\chapter{Getting Started}
+\label{chap:getting-started}
+
+Welcome to \project{}!
+\project{} aims to reduce the cost of training large scale machine learning
+models.
+Our system allows users to dynamically train NLP models using preemptable
+servers, such as AWS spot instances.
+Current systems only allow a static cluster configuraton, with developer added
+check pointing for fault tolerance.
+
+Our user facing code runs in Python, and in the source tree you should be able
+to run the command:
+\begin{lstlisting}
+  python -m project_pactum --version
+\end{lstlisting}
+This displays your current version and ensures you have the basic dependencies
+installed.
+
+Our design includes a daemon that monitors AWS instances, and allows you to add
+local instances for testing on the same machine.
+For setup, create a file called \lstinline|settings.py| in the base repository
+directory.
+Here's an example of what it should contain:
+\begin{lstlisting}
+from pathlib import Path
+
+AWS_ACCESS_KEY_ID = 'YOUR_AWS_ACCESS_KEY_ID'
+AWS_SECRET_ACCESS_KEY = 'YOUR_AWS_SECRET_ACCESS_KEY'
+AWS_REGION = 'us-east-1'
+AWS_NAME = 'Jon'
+AWS_AMI_ID = 'Project Pactum 0.1.0.dev123'
+
+SSH_USERNAME = 'jon'
+SSH_KEY = Path.home() / '.ssh' / 'id_rsa'
+
+CUDA_HOME = Path('/opt/cuda')
+DEEPSPEED_DIR = Path.home() / 'src' / 'ucla' / 'project-pactum' / 'external' / 'deepspeed'
+\end{lstlisting}
+

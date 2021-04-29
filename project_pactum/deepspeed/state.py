@@ -11,12 +11,13 @@ class DeepspeedState:
 	def __init__(self):
 		self.processes = []
 		self.instances = {}
+		self.next_local_instance_id = 0
 
 	def instance_heartbeat(self, name):
 		current_instances = {}
 		# Preserve any localhost instances
 		for k, v in self.instances.items():
-			if k == 'localhost':
+			if k.startswith('localhost'):
 				current_instances[k] = v
 		for instance in project_pactum.aws.instance.get_instances():
 			if 'PublicIpAddress' not in instance:
@@ -44,13 +45,16 @@ class DeepspeedState:
 
 	def add_local_instance(self):
 		local_instance = {
-			'localhost': {
+			f'localhost-{self.next_local_instance_id}': {
 				'PublicIpAddress': '127.0.0.1',
 				'PrivateIpAddress': '127.0.0.1',
                          },
 		}
+		self.next_local_instance_id += 1
 		self.added_instances_listener(local_instance)
+		print('before', self.instances)
 		self.instances.update(local_instance)
+		print('after', self.instances)
 		return 'Added local instance'
 
 	def added_instances_listener(self, instance_ids):
@@ -89,6 +93,7 @@ class DeepspeedState:
 
 		SSH_USERNAME = project_pactum.settings.SSH_USERNAME
 		SSH_KEY = project_pactum.settings.SSH_KEY
+		CUDA_HOME = project_pactum.settings.CUDA_HOME
 		DEEPSPEED_DIR = project_pactum.settings.DEEPSPEED_DIR
 
 		public_ips = []
@@ -110,7 +115,9 @@ class DeepspeedState:
 		for i, public_ip in enumerate(public_ips):
 			example_path = DEEPSPEED_DIR / 'DeepSpeedExamples' / 'cifar'
 			deepspeed_launch = [
+				f'export CUDA_HOME={CUDA_HOME}',
 				f'export PYTHONPATH={DEEPSPEED_DIR}',
+				'export CXX=g++',
 				"&&",
 				"cd {}".format(example_path),
 				"&&",
