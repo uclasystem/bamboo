@@ -46,15 +46,13 @@ class DeepspeedState:
 	def add_local_instance(self):
 		local_instance = {
 			f'localhost-{self.next_local_instance_id}': {
-				'PublicIpAddress': '127.0.0.1',
-				'PrivateIpAddress': '127.0.0.1',
+				'PublicIpAddress': f'127.0.0.{self.next_local_instance_id+1}',
+				'PrivateIpAddress': f'127.0.0.{self.next_local_instance_id+1}',
                          },
 		}
 		self.next_local_instance_id += 1
 		self.added_instances_listener(local_instance)
-		print('before', self.instances)
 		self.instances.update(local_instance)
-		print('after', self.instances)
 		return 'Added local instance'
 
 	def added_instances_listener(self, instance_ids):
