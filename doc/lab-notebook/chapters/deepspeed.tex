@@ -1,0 +1,15 @@
+\chapter{DeepSpeed}
+\label{chap:deepspeed}
+
+\section{DeepSpeed Introduction}
+DeepSpeed is a distributed machine learning framework that enables training to
+scale to massive numbers of paramters efficiently.
+It's main focus is on reducing the memory bottleneck caused by redundant
+memory in Deep Neural Network training where each worker has a full
+copy of all the data required to train the network.
+DeepSpeed takes advantage of the fact that this data can be partitioned
+among the workers and can therefore run with much lower memory overheads
+and fit much larger models without resorting to techniques like
+model-parallelism~\cite{corr/abs-1909-08053, nips/2018/shazeer} or
+pipeline-parallelism~\cite{nips/2019/huang, sosp/2019/narayanan}.
+
