@@ -11,12 +11,19 @@ def add_arguments(parser):
 	parser_add = subparsers.add_parser('add', help='create a deepspeed job')
 	parser_add.set_defaults(command=handle_add)
 
+	parser_add = subparsers.add_parser('add-local-instance', help='add a localhost instance')
+	parser_add.set_defaults(command=handle_add_local_instance)
+
 	parser_add = subparsers.add_parser('add-gpt2', help='run gpt2 pretraining')
 	parser_add.set_defaults(command=handle_gpt2)
 
 def handle_add(options):
 	client = ClientDaemon()
 	print(client.get_reply('deepspeed add'))
+
+def handle_add_local_instance(options):
+	client = ClientDaemon()
+	print(client.get_reply('deepspeed add-local-instance'))
 
 def handle_show(options):
 	client = ClientDaemon()

@@ -7,6 +7,8 @@ import subprocess
 
 import project_pactum
 
+logger = logging.getLogger(__name__)
+
 class ProjectPactumFormatter(logging.Formatter):
 
 	def format(self, record):
@@ -33,11 +35,15 @@ def parse(args):
 	for module_info in pkgutil.iter_modules(project_pactum.__path__):
 		if not module_info.ispkg:
 			continue
-		full_module_name = 'project_pactum.{}.command'.format(module_info.name)
+		name = module_info.name
+		if name in ['core']:
+			continue
+		full_module_name = 'project_pactum.{}.command'.format(name)
 		try:
 			module = importlib.import_module(full_module_name)
 		except ModuleNotFoundError as e:
-			continue
+			logger.error(f'{full_module_name} module missing')
+			raise(e)
 
 		subparser = subparsers.add_parser(module_info.name, help=module.HELP)
 		module.add_arguments(subparser)
@@ -80,7 +86,6 @@ def run(args, **kwargs):
 	return p
 
 def setup(options):
-	setup_logging()
 	setup_settings()
 
 	if options.command_name == 'dataset':

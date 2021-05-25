@@ -75,6 +75,8 @@ class ServerDaemon(BaseDaemon):
 			return 'daemon stopping'
 		elif msg == 'deepspeed add':
 			return self.states['deepspeed'].add()
+		elif msg == 'deepspeed add-local-instance':
+			return self.states['deepspeed'].add_local_instance()
 		elif msg == 'deepspeed add-gpt2':
 			return self.states['deepspeed'].add_gpt2()
 		elif msg == 'deepspeed show':

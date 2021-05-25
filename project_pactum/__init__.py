@@ -8,7 +8,9 @@ VERSION = get_version()
 __version__ = get_python_version(VERSION)
 
 def main(args):
-	from project_pactum.core.base import parse, setup
+	from project_pactum.core.base import parse, setup, setup_logging
+
+	setup_logging()
 
 	options = parse(args)
 
