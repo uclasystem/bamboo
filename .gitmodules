@@ -1,7 +1,6 @@
 [submodule "external/deepspeed"]
 	path = external/deepspeed
-	url = git@laforge.cs.ucla.edu:DeepSpeed
-	branch = project-pactum
+	url = git@github.com:eyolfson/project-pactum-deepspeed.git
 [submodule "doc/conference-paper"]
 	path = doc/conference-paper
 	url = git@github.com:eyolfson/project-pactum-conference-paper.git
