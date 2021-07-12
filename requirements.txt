@@ -1,1 +1,5 @@
+boto3
+ninja
+packaging
 python-daemon
+tensorboardX

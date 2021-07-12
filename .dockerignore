@@ -1,0 +1,12 @@
+/dataset/
+/experiment/
+/venv/
+__pycache__/
+/settings.py
+
+/.git/
+/.gitignore/
+/.gitmodules/
+
+Dockerfile
+/.dockerignore
