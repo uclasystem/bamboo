@@ -103,3 +103,67 @@ Add the following to \lstinline|/etc/fstab|:
 \begin{lstlisting}
 fs-c6015832.efs.us-east-1.amazonaws.com:/   /mnt/efs    nfs4    nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport 0   0
 \end{lstlisting}
+
+\section{Running GPT2}
+First make sure you have an AWS instance that can run DeepSpeed.
+It should have either CUDA 10.1 or 10.2.
+Also for GPT-2 you have to make sure NVIDIA APEX is installed.
+Unfortunatley you cannot pip install it, you have to install it from their github.
+
+
+\subsection{Loading the data}
+If you are running in us-east-1 you can directly mount the data from the EFS which acts as an NFS server.
+\begin{lstlisting}
+fs-c6015832.efs.us-east-1.amazonaws.com:/   /mnt/efs    nfs4    nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport 0   0
+\end{lstlisting}
+
+This will mount the data at /mnt/efs.
+
+If not, you can download the data from S3 using the command:
+\begin{lstlisting}
+aws s3 cp s3://gpt-2-related .
+\end{lstlisting}
+
+This will download all data related to the gpt-2 model.
+Personally, I have found it easiest to put the data in a networked storage that
+is accessible by all nodes as this makes it easiest to reconfigure.
+
+\subsection{Running the model}
+Once you have the data accessible by the workers and PyTorch and DeepSpeed
+installed you should move into:
+\begin{lstlisting}
+cd external/deepspeed/DeepSpeedExamples/Megatron-v1.1.5-3D_parallelism
+\end{lstlisting}
+
+If you are running on multiple nodes, make sure you have a host file configured
+for DeepSpeed in the format:
+\begin{lstlisting}
+worker0_ip slots=[gpus per worker]
+worker1_ip slots=[gpus per worker]
+worker3_ip slots=[gpus per worker]
+...
+workerN_ip slots=[gpus per worker]
+\end{lstlisting}
+
+Finally, change the variables passed into the file \lstinline|examples/ds_pretrain_gpt2_pipe.sh| to match your particular configuration.
+The ones of interest will be
+\begin{lstlisting}
+GPUS_PER_NODE=
+MASTER_ADDR=
+NNODES=
+
+DATA_PATH=/mnt/efs/wikidata/my-gpt2_text_document
+VOCAB_PATH=/mnt/efs/wikidata/roberta-large-mnli-vocab.json
+MERGE_PATH=/mnt/efs/wikidata/roberta-large-mnli-merges.txt
+CHECKPOINT_PATH=/mnt/efs/checkpoints/gpt2-ds/
+
+mp_size= 	# set to 1 for no model parallelism
+pp_size=
+\end{lstlisting}
+
+You can also consider \lstinline|NLAYERS| to change the size of the model.
+I have found setting \lstinline|NLAYERS=196| will result in a 2.5B parameter
+model.
+
+Finally, you should be able to just run
+\lstinline|bash examples/ds_pretrain_gpt2_pipe.sh| and it should work.
