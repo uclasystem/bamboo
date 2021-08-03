@@ -1,5 +1,6 @@
 /dataset/
 /experiment/
+/k8s/
 /venv/
 __pycache__/
 /settings.py

@@ -1,0 +1,15 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: project-pactum
+  region: us-west-1
+  version: "1.21"
+
+managedNodeGroups:
+  - name: ng-1
+    instanceType: g4dn.xlarge
+    desiredCapacity: 2
+    volumeSize: 20
+    ssh:
+      publicKeyName: jon
