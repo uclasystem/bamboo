@@ -4,3 +4,6 @@
 [submodule "doc/conference-paper"]
 	path = doc/conference-paper
 	url = git@github.com:eyolfson/project-pactum-conference-paper.git
+[submodule "external/apex"]
+	path = external/apex
+	url = https://github.com/NVIDIA/apex
