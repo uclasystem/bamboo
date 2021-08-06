@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: project-pactum
+spec:
+  containers:
+  - name: project-pactum
+    image: 416609528037.dkr.ecr.us-west-1.amazonaws.com/project-pactum:0.1.0-169
+    command: ["/bin/sleep", "999999"]
+    volumeMounts:
+      - mountPath: /data
+        name: data
+        subPath: data
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: efs-claim

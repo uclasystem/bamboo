@@ -10,6 +10,6 @@ managedNodeGroups:
   - name: ng-1
     instanceType: g4dn.xlarge
     desiredCapacity: 2
-    volumeSize: 20
+    volumeSize: 40
     ssh:
       publicKeyName: jon
