@@ -2,6 +2,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: project-pactum
+  namespace: elastic-job
 spec:
   containers:
   - name: project-pactum
