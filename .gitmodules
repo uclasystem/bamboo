@@ -9,4 +9,4 @@
 	url = https://github.com/NVIDIA/apex
 [submodule "external/elastic"]
 	path = external/elastic
-	url = https://github.com/pytorch/elastic/
+        url = git@github.com:eyolfson/project-pactum-elastic.git
