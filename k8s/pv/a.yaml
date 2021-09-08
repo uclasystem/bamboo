@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: efs-pv-a
+  name: efs-a-pv
 spec:
   capacity:
     storage: 1Ti
@@ -9,7 +9,6 @@ spec:
   accessModes:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
-  storageClassName: efs-sc
   csi:
     driver: efs.csi.aws.com
     volumeHandle: fs-0c166a473b9064da2

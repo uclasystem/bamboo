@@ -3,7 +3,7 @@ kind: ClusterConfig
 
 metadata:
   name: project-pactum
-  region: us-west-1
+  region: us-west-2
   version: "1.21"
 
 managedNodeGroups:
@@ -13,3 +13,6 @@ managedNodeGroups:
     volumeSize: 40
     ssh:
       publicKeyName: jon
+    availabilityZones: ["us-west-2a"]
+
+availabilityZones: ["us-west-2a", "us-west-2b", "us-west-2c", "us-west-2d"]
