@@ -18,7 +18,7 @@ spec:
         spec:
           containers:
             - name: elasticjob-worker
-              image: 416609528037.dkr.ecr.us-west-1.amazonaws.com/project-pactum:0.1.0-169
+              image: 416609528037.dkr.ecr.us-west-2.amazonaws.com/project-pactum:0.1.0-175
               imagePullPolicy: Always
               command: ["python", "-m", "torch.distributed.run"]
               args:
@@ -70,4 +70,4 @@ spec:
           volumes:
             - name: data
               persistentVolumeClaim:
-                claimName: efs-claim
+                claimName: efs-a-claim
