@@ -20,7 +20,7 @@ spec:
             - name: elasticjob-worker
               image: 416609528037.dkr.ecr.us-west-2.amazonaws.com/project-pactum:0.1.0-175
               imagePullPolicy: Always
-              command: ["python", "-m", "torch.distributed.run"]
+              command: ["python", "-m", "project_pactum.run"]
               args:
                 - "--nproc_per_node=1"
                 - "/workspace/external/deepspeed/DeepSpeedExamples/Megatron-LM-v1.1.5-3D_parallelism/pretrain_gpt2.py"
