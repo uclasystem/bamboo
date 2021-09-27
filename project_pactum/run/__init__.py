@@ -1,9 +1,14 @@
 import argparse
 
-from torch.distributed.argparse_util import check_env, env
-from torch.distributed.launcher.api import elastic_launch
+from project_pactum.run.api import (
+    LaunchConfig,
+    elastic_launch,
+    launch_agent,
+)
 
 def parse(args):
+    from torch.distributed.argparse_util import check_env, env
+
     parser = argparse.ArgumentParser(prog='project_pactum.run',
 	                             description='Project Pactum Run')
 
@@ -227,7 +232,6 @@ def run(args):
         config=config,
         entrypoint=cmd,
     )(*cmd_args)
-
 
 def main(args):
     options = parse(args)
