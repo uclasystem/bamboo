@@ -6,7 +6,7 @@ metadata:
 spec:
   containers:
   - name: project-pactum
-    image: 416609528037.dkr.ecr.us-west-2.amazonaws.com/project-pactum:0.1.0-175
+    image: 416609528037.dkr.ecr.us-west-2.amazonaws.com/project-pactum:0.1.0-188
     command: ["/bin/sleep", "999999"]
     volumeMounts:
       - mountPath: /data
