@@ -6,13 +6,13 @@ from typing import Any, Callable, Dict, List, Optional, Union, cast, Tuple
 import torch.distributed.elastic.rendezvous.registry as rdzv_registry
 from torch.distributed.elastic import events, metrics
 from torch.distributed.elastic.agent.server.api import WorkerSpec, WorkerState  # type: ignore[import]
-from torch.distributed.elastic.agent.server.local_elastic_agent import LocalElasticAgent  # type: ignore[import]
 from torch.distributed.elastic.multiprocessing import Std
 from torch.distributed.elastic.multiprocessing.errors import ChildFailedError, record
 from torch.distributed.elastic.rendezvous import RendezvousParameters
 from torch.distributed.elastic.rendezvous.utils import parse_rendezvous_endpoint
 from torch.distributed.elastic.utils.logging import get_logger
 
+from project_pactum.agent import ProjectPactumAgent
 
 logger = get_logger()
 
@@ -218,7 +218,7 @@ def launch_agent(
         cfg = metrics.MetricsConfig(config.metrics_cfg) if config.metrics_cfg else None
         metrics.initialize_metrics(cfg)
 
-        agent = LocalElasticAgent(
+        agent = ProjectPactumAgent(
             spec=spec, start_method=config.start_method, log_dir=config.log_dir
         )
 
