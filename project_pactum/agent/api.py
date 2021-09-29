@@ -2,5 +2,5 @@
 
 from torch.distributed.elastic.agent.server import SimpleElasticAgent
 
-class ProjectPactumAgent(SimpleElasticAgent)
+class ProjectPactumAgent(SimpleElasticAgent):
     pass
