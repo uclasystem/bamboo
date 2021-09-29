@@ -1,3 +1,3 @@
-from project_pactum.agent import (
+from project_pactum.agent.api import (
     ProjectPactumAgent
 )
