@@ -94,7 +94,7 @@ def parse(args):
         "--start_method",
         action=env,
         type=str,
-        default="spawn",
+        default="fork",
         choices=["spawn", "fork", "forkserver"],
         help="Multiprocessing start method to use when creating workers.",
     )

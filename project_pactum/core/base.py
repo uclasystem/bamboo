@@ -36,7 +36,7 @@ def parse(args):
 		if not module_info.ispkg:
 			continue
 		name = module_info.name
-		if name in ['core']:
+		if name in ['core', 'agent', 'daemon', 'deepspeed', 'run']:
 			continue
 		full_module_name = 'project_pactum.{}.command'.format(name)
 		try:
