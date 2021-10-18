@@ -24,22 +24,17 @@ class ProjectPactumAgent(SimpleElasticAgent):
     def __init__(
         self,
         spec: WorkerSpec,
-        start_method="fork",
+        start_method="spawn",
         exit_barrier_timeout: float = 300,
         log_dir: Optional[str] = None,
+        extra_env=None,
     ):
         super().__init__(spec, exit_barrier_timeout)
         self._start_method = start_method
         self._pcontext: Optional[PContext] = None
         rdzv_run_id = spec.rdzv_handler.get_run_id()
         self._log_dir = self._make_log_dir(log_dir, rdzv_run_id)
-
-        # Add the shared memory for the state between the agent and worker
-        from multiprocessing import Manager
-        self.manager = Manager()
-        state = self.manager.dict()
-        import project_pactum.agent
-        setattr(project_pactum.agent, 'state', state)
+        self._extra_env = extra_env
 
     def _make_log_dir(self, log_dir: Optional[str], rdzv_run_id: str):
         base_log_dir = log_dir or tempfile.mkdtemp(prefix="torchelastic_")
@@ -119,6 +114,8 @@ class ProjectPactumAgent(SimpleElasticAgent):
             }
             if "OMP_NUM_THREADS" in os.environ:
                 worker_env["OMP_NUM_THREADS"] = os.environ["OMP_NUM_THREADS"]
+            if self._extra_env:
+                worker_env.update(self._extra_env)
             envs[local_rank] = worker_env
             worker_args = list(spec.args)
             worker_args = macros.substitute(worker_args, str(local_rank))
@@ -130,19 +127,10 @@ class ProjectPactumAgent(SimpleElasticAgent):
         shutil.rmtree(attempt_log_dir, ignore_errors=True)
         os.makedirs(attempt_log_dir)
 
-        # convert entrypoint to callable
-        assert spec.entrypoint.endswith('python')
-        assert args[0][0] == '-u'
-        import importlib
-        mod_name, func_name = args[0][1].rsplit('.', 1)
-        mod = importlib.import_module(mod_name)
-        entrypoint = getattr(mod, func_name)
-        args[0] = args[0][2:]
-
         assert spec.entrypoint is not None
         self._pcontext = start_processes(
             name=spec.role,
-            entrypoint=entrypoint,
+            entrypoint=spec.entrypoint,
             args=args,
             envs=envs,
             log_dir=attempt_log_dir,

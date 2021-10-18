@@ -3,6 +3,7 @@ import argparse
 from project_pactum.run.api import (
     LaunchConfig,
     elastic_launch,
+    config_from_args,
     launch_agent,
 )
 
@@ -15,6 +16,7 @@ def parse(args):
     from project_pactum import VERSION
     parser.add_argument('--version', action='version',
 	                version='Project Pactum {}'.format(VERSION))
+    parser.add_argument('--project-pactum', action='store_true')
 
     parser.add_argument(
         "--nnodes",
@@ -94,7 +96,7 @@ def parse(args):
         "--start_method",
         action=env,
         type=str,
-        default="fork",
+        default="spawn",
         choices=["spawn", "fork", "forkserver"],
         help="Multiprocessing start method to use when creating workers.",
     )
@@ -212,8 +214,6 @@ def parse(args):
     return parser.parse_args(args)
 
 def run(args):
-    from torch.distributed.run import config_from_args
-    
     if args.standalone:
         args.rdzv_backend = "c10d"
         args.rdzv_endpoint = "localhost:29400"

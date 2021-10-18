@@ -11,7 +11,7 @@ COPY requirements.txt /workspace/requirements.txt
 RUN pip install -U pip && pip install -r /workspace/requirements.txt
 
 ENV PATH=$VIRTUAL_ENV/bin:/workspace/external/deepspeed/bin:$PATH
-ENV PYTHONPATH=/workspace:/workspace/external/deepspeed:/workspace/external/deepspeed/DeepSpeedExamples/Megatron-LM-v1.1.5-3D_parallelism
+ENV PYTHONPATH=/workspace:/workspace/external/deepspeed
 
 RUN touch /workspace/VERSION /workspace/VERSION.out
 COPY . /workspace

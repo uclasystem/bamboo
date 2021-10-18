@@ -12,10 +12,7 @@ from torch.distributed.elastic.rendezvous import RendezvousParameters
 from torch.distributed.elastic.rendezvous.utils import parse_rendezvous_endpoint
 from torch.distributed.elastic.utils.logging import get_logger
 
-from project_pactum.agent import ProjectPactumAgent
-
 logger = get_logger()
-
 
 @dataclass
 class LaunchConfig:
@@ -65,6 +62,7 @@ class LaunchConfig:
     redirects: Union[Std, Dict[int, Std]] = Std.NONE
     tee: Union[Std, Dict[int, Std]] = Std.NONE
     metrics_cfg: Dict[str, str] = field(default_factory=dict)
+    project_pactum: bool = False
 
     def __post_init__(self):
         self.rdzv_configs["timeout"] = self.rdzv_timeout
@@ -156,6 +154,89 @@ def _get_addr_and_port(
         )
     return (master_addr, master_port)
 
+def config_from_args(args) -> Tuple[LaunchConfig, Union[Callable, str], List[str]]:
+    import os
+    from torch.distributed.run import parse_min_max_nnodes, determine_local_world_size, get_rdzv_endpoint
+    from torch.distributed.elastic.rendezvous.utils import _parse_rendezvous_config
+
+    # If ``args`` not passed, defaults to ``sys.argv[:1]``
+    min_nodes, max_nodes = parse_min_max_nnodes(args.nnodes)
+    assert 0 < min_nodes <= max_nodes
+    assert args.max_restarts >= 0
+
+    nproc_per_node = determine_local_world_size(args.nproc_per_node)
+    if "OMP_NUM_THREADS" not in os.environ and nproc_per_node > 1:
+        omp_num_threads = 1
+        print(
+            f"*****************************************\n"
+            f"Setting OMP_NUM_THREADS environment variable for each process to be "
+            f"{omp_num_threads} in default, to avoid your system being overloaded, "
+            f"please further tune the variable for optimal performance in "
+            f"your application as needed. \n"
+            f"*****************************************"
+        )
+        # This env variable will be passed down to the subprocesses
+        os.environ["OMP_NUM_THREADS"] = str(omp_num_threads)
+
+    rdzv_configs = _parse_rendezvous_config(args.rdzv_conf)
+
+    if args.rdzv_backend == "static":
+        rdzv_configs["rank"] = args.node_rank
+
+    rdzv_endpoint = get_rdzv_endpoint(args)
+
+    config = LaunchConfig(
+        min_nodes=min_nodes,
+        max_nodes=max_nodes,
+        nproc_per_node=nproc_per_node,
+        run_id=args.rdzv_id,
+        role=args.role,
+        rdzv_endpoint=rdzv_endpoint,
+        rdzv_backend=args.rdzv_backend,
+        rdzv_configs=rdzv_configs,
+        max_restarts=args.max_restarts,
+        monitor_interval=args.monitor_interval,
+        start_method=args.start_method,
+        redirects=Std.from_str(args.redirects),
+        tee=Std.from_str(args.tee),
+        log_dir=args.log_dir,
+        project_pactum=args.project_pactum,
+    )
+
+    with_python = not args.no_python
+    cmd: Union[Callable, str]
+    cmd_args = []
+    if args.run_path:
+        cmd = run_script_path
+        cmd_args.append(args.training_script)
+    else:
+        if with_python:
+            cmd = sys.executable
+            cmd_args.append("-u")
+            if args.module:
+                cmd_args.append("-m")
+            cmd_args.append(args.training_script)
+        else:
+            if not args.use_env:
+                raise ValueError(
+                    "When using the '--no_python' flag,"
+                    " you must also set the '--use_env' flag."
+                )
+            if args.module:
+                raise ValueError(
+                    "Don't use both the '--no_python' flag"
+                    " and the '--module' flag at the same time."
+                )
+            cmd = args.training_script
+    if not args.use_env:
+        log.warning(
+            "--use_env is deprecated and will be removed in future releases.\n"
+            " Please read local_rank from `os.environ('LOCAL_RANK')` instead."
+        )
+        cmd_args.append(f"--local_rank={macros.local_rank}")
+    cmd_args.extend(args.training_script_args)
+
+    return config, cmd, cmd_args
 
 # pyre-fixme[56]: Pyre was not able to infer the type of the decorator
 # torch.distributed.elastic.multiprocessing.errors.record.
@@ -218,9 +299,23 @@ def launch_agent(
         cfg = metrics.MetricsConfig(config.metrics_cfg) if config.metrics_cfg else None
         metrics.initialize_metrics(cfg)
 
-        agent = ProjectPactumAgent(
-            spec=spec, start_method=config.start_method, log_dir=config.log_dir
-        )
+        if config.project_pactum:
+            assert config.rdzv_backend == 'etcd'
+            from project_pactum.agent import ProjectPactumAgent
+            extra_env = {
+                'PROJECT_PACTUM_ENABLED': str(1),
+                'PROJECT_PACTUM_ETCD_ENDPOINT': config.rdzv_endpoint,
+                'PROJECT_PACTUM_RUN_ID': config.run_id,
+            }
+            agent = ProjectPactumAgent(
+                spec=spec, start_method=config.start_method, log_dir=config.log_dir,
+                extra_env=extra_env,
+            )
+        else:
+            from torch.distributed.elastic.agent.server.local_elastic_agent import LocalElasticAgent
+            agent = LocalElasticAgent(
+                spec=spec, start_method=config.start_method, log_dir=config.log_dir
+            )
 
         result = agent.run()
         events.record(agent.get_agent_status_event(WorkerState.SUCCEEDED))
