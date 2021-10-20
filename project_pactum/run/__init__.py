@@ -1,10 +1,8 @@
 import argparse
 
 from project_pactum.run.api import (
-    LaunchConfig,
     elastic_launch,
     config_from_args,
-    launch_agent,
 )
 
 def parse(args):
@@ -17,6 +15,7 @@ def parse(args):
     parser.add_argument('--version', action='version',
 	                version='Project Pactum {}'.format(VERSION))
     parser.add_argument('--project-pactum', action='store_true')
+    parser.add_argument('--max-pipe-parallel-size', type=int)
 
     parser.add_argument(
         "--nnodes",

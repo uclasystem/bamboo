@@ -15,7 +15,7 @@ from torch.distributed.elastic.utils.logging import get_logger
 logger = get_logger()
 
 @dataclass
-class LaunchConfig:
+class ProjectPactumLaunchConfig:
     """
     min_nodes: Minimum amount of nodes that the user function will
                      be launched on. Elastic agent ensures that the user
@@ -63,6 +63,7 @@ class LaunchConfig:
     tee: Union[Std, Dict[int, Std]] = Std.NONE
     metrics_cfg: Dict[str, str] = field(default_factory=dict)
     project_pactum: bool = False
+    max_pipe_parallel_size: int = 1
 
     def __post_init__(self):
         self.rdzv_configs["timeout"] = self.rdzv_timeout
@@ -81,17 +82,17 @@ class elastic_launch:
         # ...
     def main():
         # entrypoint is a function.
-        outputs = elastic_launch(LaunchConfig, worker_fn)(foo)
+        outputs = elastic_launch(ProjectPactumLaunchConfig, worker_fn)(foo)
         # return rank 0's output
         return outputs[0]
         # entrypoint is a command and ``script.py`` is the python module.
-        ouptuts = elestic_launch(LaunchConfig, "script.py")(args)
-        ouptuts = elestic_launch(LaunchConfig, "python")("script.py")
+        ouptuts = elestic_launch(ProjectPactumLaunchConfig, "script.py")(args)
+        ouptuts = elestic_launch(ProjectPactumLaunchConfig, "python")("script.py")
     """
 
     def __init__(
         self,
-        config: LaunchConfig,
+        config: ProjectPactumLaunchConfig,
         entrypoint: Union[Callable, str, None],
     ):
         self._config = config
@@ -101,7 +102,7 @@ class elastic_launch:
         return launch_agent(self._config, self._entrypoint, list(args))
 
 
-def _construct_event(config: LaunchConfig) -> events.Event:
+def _construct_event(config: ProjectPactumLaunchConfig) -> events.Event:
     metadata = {
         "rdzv_backend": config.rdzv_backend,
         "run_id": config.run_id,
@@ -154,7 +155,7 @@ def _get_addr_and_port(
         )
     return (master_addr, master_port)
 
-def config_from_args(args) -> Tuple[LaunchConfig, Union[Callable, str], List[str]]:
+def config_from_args(args) -> Tuple[ProjectPactumLaunchConfig, Union[Callable, str], List[str]]:
     import os
     from torch.distributed.run import parse_min_max_nnodes, determine_local_world_size, get_rdzv_endpoint
     from torch.distributed.elastic.rendezvous.utils import _parse_rendezvous_config
@@ -185,7 +186,7 @@ def config_from_args(args) -> Tuple[LaunchConfig, Union[Callable, str], List[str
 
     rdzv_endpoint = get_rdzv_endpoint(args)
 
-    config = LaunchConfig(
+    config = ProjectPactumLaunchConfig(
         min_nodes=min_nodes,
         max_nodes=max_nodes,
         nproc_per_node=nproc_per_node,
@@ -201,6 +202,7 @@ def config_from_args(args) -> Tuple[LaunchConfig, Union[Callable, str], List[str
         tee=Std.from_str(args.tee),
         log_dir=args.log_dir,
         project_pactum=args.project_pactum,
+        max_pipe_parallel_size=args.max_pipe_parallel_size,
     )
 
     with_python = not args.no_python
@@ -242,7 +244,7 @@ def config_from_args(args) -> Tuple[LaunchConfig, Union[Callable, str], List[str
 # torch.distributed.elastic.multiprocessing.errors.record.
 @record
 def launch_agent(
-    config: LaunchConfig,
+    config: ProjectPactumLaunchConfig,
     entrypoint: Union[Callable, str, None],
     args: List[Any],
 ) -> Dict[int, Any]:
@@ -255,18 +257,19 @@ def launch_agent(
 
     logger.info(
         f"Starting elastic_operator with launch configs:\n"
-        f"  entrypoint       : {entrypoint_name}\n"
-        f"  min_nodes        : {config.min_nodes}\n"
-        f"  max_nodes        : {config.max_nodes}\n"
-        f"  nproc_per_node   : {config.nproc_per_node}\n"
-        f"  run_id           : {config.run_id}\n"
-        f"  rdzv_backend     : {config.rdzv_backend}\n"
-        f"  rdzv_endpoint    : {config.rdzv_endpoint}\n"
-        f"  rdzv_configs     : {config.rdzv_configs}\n"
-        f"  max_restarts     : {config.max_restarts}\n"
-        f"  monitor_interval : {config.monitor_interval}\n"
-        f"  log_dir          : {config.log_dir}\n"
-        f"  metrics_cfg      : {config.metrics_cfg}\n"
+        f"  entrypoint             : {entrypoint_name}\n"
+        f"  min_nodes              : {config.min_nodes}\n"
+        f"  max_nodes              : {config.max_nodes}\n"
+        f"  nproc_per_node         : {config.nproc_per_node}\n"
+        f"  run_id                 : {config.run_id}\n"
+        f"  rdzv_backend           : {config.rdzv_backend}\n"
+        f"  rdzv_endpoint          : {config.rdzv_endpoint}\n"
+        f"  rdzv_configs           : {config.rdzv_configs}\n"
+        f"  max_restarts           : {config.max_restarts}\n"
+        f"  monitor_interval       : {config.monitor_interval}\n"
+        f"  log_dir                : {config.log_dir}\n"
+        f"  metrics_cfg            : {config.metrics_cfg}\n"
+        f"  max_pipe_parallel_size : {config.max_pipe_parallel_size}\n"
     )
 
     rdzv_parameters = RendezvousParameters(
@@ -282,26 +285,30 @@ def launch_agent(
     rdzv_handler = rdzv_registry.get_rendezvous_handler(rdzv_parameters)
     master_addr, master_port = _get_addr_and_port(rdzv_parameters)
     try:
-        spec = WorkerSpec(
-            role=config.role,
-            local_world_size=config.nproc_per_node,
-            entrypoint=entrypoint,
-            args=tuple(args),
-            rdzv_handler=rdzv_handler,
-            max_restarts=config.max_restarts,
-            monitor_interval=config.monitor_interval,
-            redirects=config.redirects,
-            tee=config.tee,
-            master_addr=master_addr,
-            master_port=master_port,
-        )
-
-        cfg = metrics.MetricsConfig(config.metrics_cfg) if config.metrics_cfg else None
-        metrics.initialize_metrics(cfg)
 
         if config.project_pactum:
+            from project_pactum.agent import ProjectPactumAgent, ProjectPactumWorkerSpec
+
             assert config.rdzv_backend == 'etcd'
-            from project_pactum.agent import ProjectPactumAgent
+
+            spec = ProjectPactumWorkerSpec(
+                role=config.role,
+                local_world_size=config.nproc_per_node,
+                entrypoint=entrypoint,
+                args=tuple(args),
+                rdzv_handler=rdzv_handler,
+                max_restarts=config.max_restarts,
+                monitor_interval=config.monitor_interval,
+                redirects=config.redirects,
+                tee=config.tee,
+                master_addr=master_addr,
+                master_port=master_port,
+                max_pipe_parallel_size=config.max_pipe_parallel_size,
+            )
+
+            cfg = metrics.MetricsConfig(config.metrics_cfg) if config.metrics_cfg else None
+            metrics.initialize_metrics(cfg)
+
             extra_env = {
                 'PROJECT_PACTUM_ENABLED': str(1),
                 'PROJECT_PACTUM_ETCD_ENDPOINT': config.rdzv_endpoint,
@@ -312,7 +319,26 @@ def launch_agent(
                 extra_env=extra_env,
             )
         else:
+            from torch.distributed.elastic.agent.server.api import WorkerSpec
             from torch.distributed.elastic.agent.server.local_elastic_agent import LocalElasticAgent
+
+            spec = WorkerSpec(
+                role=config.role,
+                local_world_size=config.nproc_per_node,
+                entrypoint=entrypoint,
+                args=tuple(args),
+                rdzv_handler=rdzv_handler,
+                max_restarts=config.max_restarts,
+                monitor_interval=config.monitor_interval,
+                redirects=config.redirects,
+                tee=config.tee,
+                master_addr=master_addr,
+                master_port=master_port,
+            )
+
+            cfg = metrics.MetricsConfig(config.metrics_cfg) if config.metrics_cfg else None
+            metrics.initialize_metrics(cfg)
+
             agent = LocalElasticAgent(
                 spec=spec, start_method=config.start_method, log_dir=config.log_dir
             )

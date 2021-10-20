@@ -1,21 +1,27 @@
 # https://pytorch.org/docs/stable/elastic/agent.html
 
+import functools
 import os
 import shutil
 import tempfile
 
-from typing import Any, Dict, Optional, Tuple
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
 
 from torch.distributed.elastic.agent.server import (
     RunResult,
     SimpleElasticAgent,
+    Worker,
     WorkerGroup,
-    WorkerSpec,
     WorkerState,
 )
+from torch.distributed.elastic.agent.server.api import _RoleInstanceInfo
 from torch.distributed.elastic.multiprocessing import start_processes, PContext
 from torch.distributed.elastic.utils import macros
 from torch.distributed.elastic.utils.logging import get_logger
+
+from project_pactum.agent.worker import ProjectPactumWorker
+from project_pactum.agent.worker_spec import ProjectPactumWorkerSpec
 
 log = get_logger()
 
@@ -23,7 +29,7 @@ class ProjectPactumAgent(SimpleElasticAgent):
 
     def __init__(
         self,
-        spec: WorkerSpec,
+        spec: ProjectPactumWorkerSpec,
         start_method="spawn",
         exit_barrier_timeout: float = 300,
         log_dir: Optional[str] = None,
@@ -42,6 +48,107 @@ class ProjectPactumAgent(SimpleElasticAgent):
         dir = tempfile.mkdtemp(prefix=f"{rdzv_run_id}_", dir=base_log_dir)
         log.info(f"log directory set to: {dir}")
         return dir
+
+    def _rendezvous(self, worker_group: WorkerGroup) -> None:
+        r"""
+        Runs rendezvous for the workers specified by worker spec.
+        Assigns workers a new global rank and world size.
+        Updates the rendezvous store for the worker group.
+        """
+
+        spec = worker_group.spec
+
+        store, group_rank, group_world_size = spec.rdzv_handler.next_rendezvous()
+        self._store = store
+
+        workers = self._assign_worker_ranks(store, group_rank, group_world_size, spec)
+        worker_group.workers = workers
+        worker_group.store = store
+        worker_group.group_rank = group_rank
+        worker_group.group_world_size = group_world_size
+
+        if group_rank == 0:
+            self._set_master_addr_port(store, spec.master_addr, spec.master_port)
+        master_addr, master_port = self._get_master_addr_port(store)
+        restart_count = spec.max_restarts - self._remaining_restarts
+
+        log.info(
+            f"[{spec.role}] Rendezvous complete for workers. Result:\n"
+            f"  restart_count={restart_count}\n"
+            f"  master_addr={master_addr}\n"
+            f"  master_port={master_port}\n"
+            f"  group_rank={group_rank}\n"
+            f"  group_world_size={group_world_size}\n"
+            f"  local_ranks={[worker.local_rank for worker in workers]}\n"
+            f"  role_ranks={[worker.role_rank for worker in workers]}\n"
+            f"  global_ranks={[worker.global_rank for worker in workers]}\n"
+            f"  role_world_sizes={[worker.role_world_size for worker in workers]}\n"
+            f"  global_world_sizes={[worker.world_size for worker in workers]}\n"
+            f"  active_pipe_parallel={[worker.active_pipe_parallel for worker in workers]}\n"
+            f"  redundant_pipe_parallel={[worker.redundant_pipe_parallel for worker in workers]}\n"
+        )
+
+    def _assign_worker_ranks(
+        self, store, group_rank: int, group_world_size: int, spec: ProjectPactumWorkerSpec
+    ) -> List[ProjectPactumWorker]:
+        """
+        Determines proper ranks for worker processes. The rank assignment
+        is done according to the following algorithm:
+        1. Each agent writes its configuration(group_rank, group_world_size
+           , num_workers) to the common store.
+        2. Each agent retrieves configuration for all agents
+           and performs two level sort using role and rank.
+        3. Determine the global rank: the global rank of the workers for the current
+           agent is the offset of the infos array up to group_rank of the agent.
+           The offset is computed as a sum of local_world_size of all agents that
+           have rank less than the group_rank. The workers would have the ranks:
+           [offset, offset+local_world_size)
+        4. Determine the role rank: The role rank is determined using the algorithms
+           in the point 3 with the exception that the offset is done from the first
+           agent that has the same role as current one and has the minimum group rank.
+        """
+
+        role_infos = self._share_and_gather(store, group_rank, group_world_size, spec)
+        my_role_info = role_infos[group_rank]
+        worker_world_size, worker_global_ranks = self._get_ranks(role_infos, group_rank)
+        role_infos = sorted(
+            role_infos, key=functools.cmp_to_key(_RoleInstanceInfo.compare)
+        )
+        role_start_idx, role_end_idx = _RoleInstanceInfo.find_role_boundaries(
+            role_infos, my_role_info.role
+        )
+        role_pos = next(
+            idx
+            for idx, role_info in enumerate(role_infos)
+            if _RoleInstanceInfo.compare(role_info, my_role_info) == 0
+        )
+        role_world_size, role_ranks = self._get_ranks(
+            role_infos, role_pos, role_start_idx, role_end_idx + 1
+        )
+        workers = []
+        for ind in range(spec.local_world_size):
+            # PROJECT-PACTUM-TODO: Assume only one pipeline for now
+            assert spec.max_pipe_parallel_size % worker_world_size == 0
+            pipe_parallel_size = spec.max_pipe_parallel_size // worker_world_size
+
+            global_rank = worker_global_ranks[ind]
+            active_pipe_parallel=[(pipe_parallel_size*global_rank, pipe_parallel_size*(global_rank+1))]
+            redundant_global_rank = global_rank + 1
+            if redundant_global_rank == worker_world_size:
+                redundant_global_rank = 0
+            redundant_pipe_parallel=[(pipe_parallel_size*redundant_global_rank, pipe_parallel_size*(redundant_global_rank+1))]
+
+            worker = ProjectPactumWorker(
+                local_rank=ind,
+                global_rank=global_rank,
+                role_rank=role_ranks[ind],
+                world_size=worker_world_size,
+                role_world_size=role_world_size,
+                active_pipe_parallel=active_pipe_parallel,
+                redundant_pipe_parallel=redundant_pipe_parallel,
+            )
+            workers.append(worker)
+        return workers
 
     def _monitor_workers(self, worker_group) -> RunResult:
         role = worker_group.spec.role
