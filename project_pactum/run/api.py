@@ -313,6 +313,7 @@ def launch_agent(
                 'PROJECT_PACTUM_ENABLED': str(1),
                 'PROJECT_PACTUM_ETCD_ENDPOINT': config.rdzv_endpoint,
                 'PROJECT_PACTUM_RUN_ID': config.run_id,
+                'PROJECT_PACTUM_MAX_PIPE_PARALLEL_SIZE': config.max_pipe_parallel_size,
             }
             agent = ProjectPactumAgent(
                 spec=spec, start_method=config.start_method, log_dir=config.log_dir,

@@ -137,6 +137,8 @@ class ProjectPactumAgent(SimpleElasticAgent):
             if redundant_global_rank == worker_world_size:
                 redundant_global_rank = 0
             redundant_pipe_parallel=[(pipe_parallel_size*redundant_global_rank, pipe_parallel_size*(redundant_global_rank+1))]
+            if worker_world_size == 1:
+                redundant_pipe_parallel = []
 
             worker = ProjectPactumWorker(
                 local_rank=ind,
