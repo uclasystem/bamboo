@@ -9,7 +9,7 @@ metadata:
 managedNodeGroups:
   - name: ng-1
     instanceType: g4dn.xlarge
-    desiredCapacity: 2
+    desiredCapacity: 4
     volumeSize: 40
     ssh:
       publicKeyName: jon
