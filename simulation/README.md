@@ -27,3 +27,8 @@ The simulation framework currently runs using the following parameters:
 	nodes
 + addition distribution (dict): Same as preemption distribution but for additions
 + total minutes (int): Number of minutes to run the simulation
+
+## Example
+python checkpoint-simulation-framework.py -pcm .05 -pd "{ \"mean\": 0, \"std\": 1 }" -acm .10 -ad "{ \"mean\": 0, \"std\": 1}"
+
+Results will be output to `simulation_results/run-{run #}`

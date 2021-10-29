@@ -58,7 +58,7 @@ def get_next_dir():
 
 ## Set total minutes based on the real trace if none is provided
 if total_minutes == None:
-    node_trace = pd.read_csv('full-64-node-trace.csv')
+    node_trace = pd.read_csv(os.path.join('traces', 'trace--full-64-node-trace', 'full-64-node-trace.csv'))
     node_trace['dt'] = node_trace['timestamp'].apply(lambda x: ts_to_dt(x))
     trace_start = node_trace.iloc[0]['dt']
     trace_end = node_trace.iloc[len(node_trace)-1]['dt']
