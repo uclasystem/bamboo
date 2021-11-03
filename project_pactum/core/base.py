@@ -18,7 +18,7 @@ class ProjectPactumFormatter(logging.Formatter):
 			logging.WARNING: 33,
 			logging.ERROR: 31,
 		}
-		fmt = '[\x1B[1;{color}m%(levelname)s\x1B[m \x1B[{color}m%(name)s\x1B[m] %(message)s'
+		fmt = '\x1B[1;{color}m%(name)s %(levelname)s\x1B[m \x1B[{color}m%(message)s\x1B[m'
 		formatter = logging.Formatter(fmt.format(color=COLORS[record.levelno]))
 		return formatter.format(record)
 
