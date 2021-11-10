@@ -14,6 +14,7 @@ class EventKind(enum.IntEnum):
     SPOT_INSTANCE_REMOVE = 2
     SPOT_INSTANCE_READY = 3
     GLOBAL_RENDEZVOUS_TIMEOUT = 4
+    TRAINING_STEP_COMPLETE = 5
 
 @dataclasses.dataclass(order=True)
 class Event:
@@ -130,6 +131,7 @@ class Simulator:
         }
         self.spot_instance_creation_time = 45_000 # milliseconds
         self.global_rendezvous_time = 30_000 # milliseconds
+        self.time_per_step = 30_000 # milliseconds
 
         self.spot_instances = {}
         self.rendezvous = []
@@ -187,6 +189,9 @@ class Simulator:
 
     def create_global_rendezvous_timeout_event(self, delta):
         return self.create_event(delta, EventKind.GLOBAL_RENDEZVOUS_TIMEOUT, {})
+
+    def create_training_step_complete_event(self, delta):
+        return self.create_event(delta, EventKind.TRAINING_STEP_COMPLETE, {})
 
     def generate_spot_instance_events(self, start, duration):
         current_delta = datetime.timedelta(seconds=0)
@@ -289,11 +294,16 @@ class Simulator:
             instance.set_global_id(i)
             instance.set_running()
         self.status = SystemStatus.RUNNING
+        self.create_training_step_complete_event(delta + self.time_per_step)
+
+    def simulate_training_step_complete(self, delta, data):
+        self.create_training_step_complete_event(delta + self.time_per_step)
 
     def simulate(self):
         start = datetime.datetime.now(datetime.timezone.utc)
         start = start.replace(minute=0, second=0, microsecond=0)
         duration = datetime.timedelta(days=2)
+        duration_milliseconds = duration // self.millisecond
         end = start + duration
 
         logger.info(f'Starting at {start}')
@@ -310,6 +320,9 @@ class Simulator:
             delta = event.delta
             data = event.data
 
+            if delta > duration_milliseconds:
+                break
+
             if kind == EventKind.SPOT_INSTANCE_ADD:
                 self.simulate_spot_instance_add(delta, data)
             elif kind == EventKind.SPOT_INSTANCE_REMOVE:
@@ -318,6 +331,8 @@ class Simulator:
                 self.simulate_spot_instance_ready(delta, data)
             elif kind == EventKind.GLOBAL_RENDEZVOUS_TIMEOUT:
                 self.simulate_global_rendezvous_timeout(delta, data)
+            elif kind == EventKind.TRAINING_STEP_COMPLETE:
+                self.simulate_training_step_complete(delta, data)
             else:
                 raise ValueError(f'Unknown kind: {kind}')
 
