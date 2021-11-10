@@ -5,6 +5,7 @@ from project_pactum.simulation.simulator import Simulator
 
 def parse(args):
     parser = argparse.ArgumentParser()
+    parser.add_argument('--generate-graphs', action='store_true')
     return parser.parse_args(args)
 
 def main(args):
@@ -13,5 +14,5 @@ def main(args):
 
     options = parse(args)
 
-    simulator = Simulator()
+    simulator = Simulator(options)
     simulator.simulate()
