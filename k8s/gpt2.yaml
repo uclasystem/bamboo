@@ -27,7 +27,6 @@ spec:
                 - "--max-pipe-parallel-size=24"
                 - "/workspace/external/deepspeed/DeepSpeedExamples/Megatron-LM-v1.1.5-3D_parallelism/pretrain_gpt2.py"
                 - "--model-parallel-size=1"
-                - "--pipe-parallel-size=2"
                 - "--num-layers=24"
                 - "--hidden-size=1024"
                 - "--num-attention-heads=16"
