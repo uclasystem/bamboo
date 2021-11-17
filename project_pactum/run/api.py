@@ -1,3 +1,4 @@
+import json
 import sys
 import uuid
 from dataclasses import dataclass, field
@@ -11,6 +12,8 @@ from torch.distributed.elastic.multiprocessing.errors import ChildFailedError, r
 from torch.distributed.elastic.rendezvous import RendezvousParameters
 from torch.distributed.elastic.rendezvous.utils import parse_rendezvous_endpoint
 from torch.distributed.elastic.utils.logging import get_logger
+
+from project_pactum.rendezvous.etcd import create_rdzv_handler
 
 logger = get_logger()
 
@@ -282,7 +285,7 @@ def launch_agent(
     )
 
     agent = None
-    rdzv_handler = rdzv_registry.get_rendezvous_handler(rdzv_parameters)
+    rdzv_handler = create_rdzv_handler(rdzv_parameters) # PROJECT-PACTUM: Removed the registry
     master_addr, master_port = _get_addr_and_port(rdzv_parameters)
     try:
 
@@ -311,8 +314,11 @@ def launch_agent(
 
             extra_env = {
                 'PROJECT_PACTUM_ENABLED': str(1),
-                'PROJECT_PACTUM_ETCD_ENDPOINT': config.rdzv_endpoint,
+                'PROJECT_PACTUM_ENDPOINT': config.rdzv_endpoint,
                 'PROJECT_PACTUM_RUN_ID': config.run_id,
+                'PROJECT_PACTUM_MIN_NODES': str(config.min_nodes),
+                'PROJECT_PACTUM_MAX_NODES': str(config.max_nodes),
+                'PROJECT_PACTUM_RDZV_CONFIGS': json.dumps(config.rdzv_configs),
                 'PROJECT_PACTUM_MAX_PIPE_PARALLEL_SIZE': str(config.max_pipe_parallel_size),
             }
             agent = ProjectPactumAgent(

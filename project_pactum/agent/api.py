@@ -4,6 +4,7 @@ import functools
 import os
 import shutil
 import tempfile
+import time
 
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
@@ -19,10 +20,12 @@ from torch.distributed.elastic.agent.server.api import _RoleInstanceInfo
 from torch.distributed.elastic.multiprocessing import start_processes, PContext
 from torch.distributed.elastic.utils import macros
 from torch.distributed.elastic.utils.logging import get_logger
+from torch.distributed.elastic.metrics import put_metric
 
 from project_pactum.agent.worker import ProjectPactumWorker
 from project_pactum.agent.worker_spec import ProjectPactumWorkerSpec
 
+DEFAULT_ROLE = "default"
 log = get_logger()
 
 class ProjectPactumAgent(SimpleElasticAgent):
@@ -87,6 +90,67 @@ class ProjectPactumAgent(SimpleElasticAgent):
             f"  active_pipe_parallel={[worker.active_pipe_parallel for worker in workers]}\n"
             f"  redundant_pipe_parallel={[worker.redundant_pipe_parallel for worker in workers]}\n"
         )
+
+    def _invoke_run(self, role: str = DEFAULT_ROLE) -> RunResult:
+        # NOTE: currently only works for a single role
+
+        spec = self._worker_group.spec
+        role = spec.role
+
+        log.info(
+            f"[{role}] starting workers for entrypoint: {spec.get_entrypoint_name()}"
+        )
+
+        self._initialize_workers(self._worker_group)
+        monitor_interval = spec.monitor_interval
+        rdzv_handler = spec.rdzv_handler
+
+        while True:
+            assert self._worker_group.state != WorkerState.INIT
+            time.sleep(monitor_interval)
+            run_result = self._monitor_workers(self._worker_group)
+            state = run_result.state
+            self._worker_group.state = state
+
+            put_metric(f"workers.{role}.remaining_restarts", self._remaining_restarts)
+            put_metric(f"workers.{role}.{state.name.lower()}", 1)
+
+            if state == WorkerState.SUCCEEDED:
+                log.info(
+                    f"[{role}] worker group successfully finished."
+                    f" Waiting {self._exit_barrier_timeout} seconds for other agents to finish."
+                )
+                self._exit_barrier()
+                return run_result
+            elif state in {WorkerState.UNHEALTHY, WorkerState.FAILED}:
+                if self._remaining_restarts > 0:
+                    log.info(
+                        f"[{role}] Worker group {state.name}. "
+                        f"{self._remaining_restarts}/{spec.max_restarts} attempts left;"
+                        f" will restart worker group"
+                    )
+                    self._remaining_restarts -= 1
+                    self._restart_workers(self._worker_group)
+                else:
+                    self._stop_workers(self._worker_group)
+                    self._worker_group.state = WorkerState.FAILED
+                    self._exit_barrier()
+                    return run_result
+            elif state == WorkerState.HEALTHY:
+                pass
+                # PROJECT-PACTUM: Do not restart the workers for joining nodes
+                # # membership changes do not count as retries
+                # num_nodes_waiting = rdzv_handler.num_nodes_waiting()
+                # group_rank = self._worker_group.group_rank
+                # if num_nodes_waiting > 0:
+                #     log.info(
+                #         f"[{role}] Detected {num_nodes_waiting} "
+                #         f"new nodes from group_rank={group_rank}; "
+                #         f"will restart worker group"
+                #     )
+                #     self._restart_workers(self._worker_group)
+            else:
+                raise Exception(f"[{role}] Worker group in {state.name} state")
 
     def _assign_worker_ranks(
         self, store, group_rank: int, group_world_size: int, spec: ProjectPactumWorkerSpec
@@ -252,7 +316,6 @@ class ProjectPactumAgent(SimpleElasticAgent):
 
     def _stop_workers(self, worker_group) -> None:
         self._shutdown()
-
 
     def _shutdown(self) -> None:
         if self._pcontext:

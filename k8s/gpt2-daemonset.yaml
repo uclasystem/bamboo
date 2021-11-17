@@ -17,7 +17,7 @@ spec:
       nodeSelector:
         eks.amazonaws.com/nodegroup: ng-1
       containers:
-      - name: elasticjob-worker
+      - name: project-pactum
         image: 416609528037.dkr.ecr.us-west-2.amazonaws.com/project-pactum:0.1.0-210
         imagePullPolicy: Always
         command: ["python", "-m", "project_pactum.run"]
