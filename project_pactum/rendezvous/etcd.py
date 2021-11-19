@@ -148,6 +148,9 @@ class EtcdRendezvousHandler(RendezvousHandler):
     def get_backend(self) -> str:
         return "etcd"
 
+    def trigger_new_rendezvous(self):
+        return self._rdzv_impl.trigger_new_rendezvous()
+
     def next_rendezvous(self, previous_global_rank=-1):
         if isinstance(previous_global_rank, str):
             previous_global_rank = int(previous_global_rank)
@@ -736,6 +739,21 @@ class EtcdRendezvous(object):
 
             except etcd.EtcdCompareFailed:
                 log.info("Announce self as waiting CAS unsuccessful, retrying")
+
+    def trigger_new_rendezvous(self):
+        try:
+            active_version, state = self.get_rdzv_state()
+        except:
+            pass
+
+        if state["status"] == "final":
+            try:
+                self.client.delete(
+                    key=self.get_path("/rdzv/active_version"),
+                    prevValue=active_version.value,
+                )
+            except:
+                pass
 
     def wait_for_rendezvous_to_free(self, expected_version):
         """
