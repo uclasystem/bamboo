@@ -9,9 +9,9 @@ class ProjectPactumWorker(Worker):
         role_rank: int = -1,
         world_size: int = -1,
         role_world_size: int = -1,
-        active_pipe_parallel = None,
-        redundant_pipe_parallel = None,
+        coordinates = None,
+        num_stages: int = -1,
     ):
         super().__init__(local_rank, global_rank, role_rank, world_size, role_world_size)
-        self.active_pipe_parallel = active_pipe_parallel
-        self.redundant_pipe_parallel = redundant_pipe_parallel
+        self.coordinates = coordinates
+        self.num_stages = num_stages

@@ -2,6 +2,7 @@
 
 import functools
 import os
+import json
 import shutil
 import tempfile
 import time
@@ -23,7 +24,7 @@ from torch.distributed.elastic.utils.logging import get_logger
 from torch.distributed.elastic.metrics import put_metric
 
 from project_pactum.agent.worker import ProjectPactumWorker
-from project_pactum.agent.worker_spec import ProjectPactumWorkerSpec
+from torch.distributed.elastic.agent.server.api import WorkerSpec
 
 DEFAULT_ROLE = "default"
 log = get_logger()
@@ -32,7 +33,7 @@ class ProjectPactumAgent(SimpleElasticAgent):
 
     def __init__(
         self,
-        spec: ProjectPactumWorkerSpec,
+        spec: WorkerSpec,
         start_method="spawn",
         exit_barrier_timeout: float = 300,
         log_dir: Optional[str] = None,
@@ -61,10 +62,10 @@ class ProjectPactumAgent(SimpleElasticAgent):
 
         spec = worker_group.spec
 
-        store, group_rank, group_world_size = spec.rdzv_handler.next_rendezvous()
+        store, group_rank, group_world_size, coordinates, num_stages = spec.rdzv_handler.next_rendezvous()
         self._store = store
 
-        workers = self._assign_worker_ranks(store, group_rank, group_world_size, spec)
+        workers = self._assign_worker_ranks(store, group_rank, group_world_size, spec, coordinates, num_stages)
         worker_group.workers = workers
         worker_group.store = store
         worker_group.group_rank = group_rank
@@ -82,13 +83,13 @@ class ProjectPactumAgent(SimpleElasticAgent):
             f"  master_port={master_port}\n"
             f"  group_rank={group_rank}\n"
             f"  group_world_size={group_world_size}\n"
+            f"  coordinates={coordinates}\n"
+            f"  num_stages={num_stages}\n"
             f"  local_ranks={[worker.local_rank for worker in workers]}\n"
             f"  role_ranks={[worker.role_rank for worker in workers]}\n"
             f"  global_ranks={[worker.global_rank for worker in workers]}\n"
             f"  role_world_sizes={[worker.role_world_size for worker in workers]}\n"
             f"  global_world_sizes={[worker.world_size for worker in workers]}\n"
-            f"  active_pipe_parallel={[worker.active_pipe_parallel for worker in workers]}\n"
-            f"  redundant_pipe_parallel={[worker.redundant_pipe_parallel for worker in workers]}\n"
         )
 
     def _invoke_run(self, role: str = DEFAULT_ROLE) -> RunResult:
@@ -153,7 +154,8 @@ class ProjectPactumAgent(SimpleElasticAgent):
                 raise Exception(f"[{role}] Worker group in {state.name} state")
 
     def _assign_worker_ranks(
-        self, store, group_rank: int, group_world_size: int, spec: ProjectPactumWorkerSpec
+        self, store, group_rank: int, group_world_size: int, spec: WorkerSpec,
+        coordinates, num_stages
     ) -> List[ProjectPactumWorker]:
         """
         Determines proper ranks for worker processes. The rank assignment
@@ -191,27 +193,19 @@ class ProjectPactumAgent(SimpleElasticAgent):
         )
         workers = []
         for ind in range(spec.local_world_size):
-            # PROJECT-PACTUM-TODO: Assume only one pipeline for now
-            assert spec.max_pipe_parallel_size % worker_world_size == 0
-            pipe_parallel_size = spec.max_pipe_parallel_size // worker_world_size
-
-            global_rank = worker_global_ranks[ind]
-            active_pipe_parallel=[(pipe_parallel_size*global_rank, pipe_parallel_size*(global_rank+1))]
-            redundant_global_rank = global_rank + 1
-            if redundant_global_rank == worker_world_size:
-                redundant_global_rank = 0
-            redundant_pipe_parallel=[(pipe_parallel_size*redundant_global_rank, pipe_parallel_size*(redundant_global_rank+1))]
-            if worker_world_size == 1:
-                redundant_pipe_parallel = []
+            # PROJECT-PACTUM: This is the new worker, if it doesn't have any
+            #                 coordinates then we shouldn't even start it
+            if len(coordinates) == 0:
+                continue
 
             worker = ProjectPactumWorker(
                 local_rank=ind,
-                global_rank=global_rank,
+                global_rank=worker_global_ranks[ind],
                 role_rank=role_ranks[ind],
                 world_size=worker_world_size,
                 role_world_size=role_world_size,
-                active_pipe_parallel=active_pipe_parallel,
-                redundant_pipe_parallel=redundant_pipe_parallel,
+                coordinates=coordinates,
+                num_stages=num_stages,
             )
             workers.append(worker)
         return workers
@@ -284,6 +278,8 @@ class ProjectPactumAgent(SimpleElasticAgent):
                 "TORCHELASTIC_RUN_ID": spec.rdzv_handler.get_run_id(),
                 "TORCHELASTIC_USE_AGENT_STORE": str(use_agent_store),
                 "NCCL_ASYNC_ERROR_HANDLING": str(1),
+                "PROJECT_PACTUM_NUM_STAGES": str(worker.num_stages),
+                "PROJECT_PACTUM_COORDINATES": json.dumps(worker.coordinates),
             }
             if "OMP_NUM_THREADS" in os.environ:
                 worker_env["OMP_NUM_THREADS"] = os.environ["OMP_NUM_THREADS"]

@@ -66,7 +66,7 @@ class ProjectPactumLaunchConfig:
     tee: Union[Std, Dict[int, Std]] = Std.NONE
     metrics_cfg: Dict[str, str] = field(default_factory=dict)
     project_pactum: bool = False
-    max_pipe_parallel_size: int = 1
+    max_pipe_parallel_size: int = 2
 
     def __post_init__(self):
         self.rdzv_configs["timeout"] = self.rdzv_timeout
@@ -275,6 +275,8 @@ def launch_agent(
         f"  max_pipe_parallel_size : {config.max_pipe_parallel_size}\n"
     )
 
+    assert config.nproc_per_node == 1
+
     rdzv_parameters = RendezvousParameters(
         backend=config.rdzv_backend,
         endpoint=config.rdzv_endpoint,
@@ -290,11 +292,11 @@ def launch_agent(
     try:
 
         if config.project_pactum:
-            from project_pactum.agent import ProjectPactumAgent, ProjectPactumWorkerSpec
+            from project_pactum.agent import ProjectPactumAgent
 
             assert config.rdzv_backend == 'etcd'
 
-            spec = ProjectPactumWorkerSpec(
+            spec = WorkerSpec(
                 role=config.role,
                 local_world_size=config.nproc_per_node,
                 entrypoint=entrypoint,
@@ -306,7 +308,6 @@ def launch_agent(
                 tee=config.tee,
                 master_addr=master_addr,
                 master_port=master_port,
-                max_pipe_parallel_size=config.max_pipe_parallel_size,
             )
 
             cfg = metrics.MetricsConfig(config.metrics_cfg) if config.metrics_cfg else None
@@ -326,7 +327,6 @@ def launch_agent(
                 extra_env=extra_env,
             )
         else:
-            from torch.distributed.elastic.agent.server.api import WorkerSpec
             from torch.distributed.elastic.agent.server.local_elastic_agent import LocalElasticAgent
 
             spec = WorkerSpec(

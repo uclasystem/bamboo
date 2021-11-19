@@ -148,13 +148,16 @@ class EtcdRendezvousHandler(RendezvousHandler):
     def get_backend(self) -> str:
         return "etcd"
 
-    def next_rendezvous(self):
-        rdzv_version, rank, world_size = self._rdzv_impl.rendezvous_barrier()
+    def next_rendezvous(self, previous_global_rank=-1):
+        if isinstance(previous_global_rank, str):
+            previous_global_rank = int(previous_global_rank)
+
+        rdzv_version, rank, world_size, coordinates, num_stages = self._rdzv_impl.rendezvous_barrier(previous_global_rank)
 
         log.info("Creating EtcdStore as the c10d::Store implementation")
         store = self._rdzv_impl.setup_kv_store(rdzv_version)
 
-        return store, rank, world_size
+        return store, rank, world_size, coordinates, num_stages
 
     def is_closed(self):
         try:
@@ -175,6 +178,10 @@ class EtcdRendezvousHandler(RendezvousHandler):
         except etcd.EtcdKeyNotFound:
             pass
         return 0
+
+    # PROJECT-PACTUM: TODO
+    def should_reconfigure(self):
+        raise NotImplementedError()
 
     def get_run_id(self) -> str:
         return self._rdzv_impl._run_id
@@ -256,7 +263,7 @@ class EtcdRendezvous(object):
         if self._lease_this_rank_stop is not None:
             self._lease_this_rank_stop.set()
 
-    def rendezvous_barrier(self):
+    def rendezvous_barrier(self, previous_global_rank):
         """
         Main entry point for next rendezvous.
         This method is blocking until rendezvous succeeds or a timeout occurs.
@@ -281,7 +288,7 @@ class EtcdRendezvous(object):
                 if self._lease_this_rank_stop is not None:
                     self._lease_this_rank_stop.set()
 
-                return self.init_phase()
+                return self.init_phase(previous_global_rank)
 
             except EtcdRendezvousRetryImmediately:
                 # The type of failure suggests we can retry without delay
@@ -313,7 +320,7 @@ class EtcdRendezvous(object):
                 log.info("Rendezvous attempt failed, will retry. Reason: " + str(e))
                 time.sleep(1)
 
-    def init_phase(self):
+    def init_phase(self, previous_global_rank):
         """
         Initially, the rendezvous state is expected to be one of:
 
@@ -346,7 +353,7 @@ class EtcdRendezvous(object):
             raise RendezvousClosedError()
 
         if state["status"] == "joinable":
-            return self.join_phase(state["version"])
+            return self.join_phase(state["version"], previous_global_rank)
 
         if state["status"] == "final":
             self.handle_existing_rendezvous(state["version"])
@@ -355,7 +362,7 @@ class EtcdRendezvous(object):
         self.try_wait_for_state_change(etcd_index=active_version.etcd_index + 1)
         raise EtcdRendezvousRetryableFailure()
 
-    def join_phase(self, expected_version):
+    def join_phase(self, expected_version, previous_global_rank):
         """
         We observed a rendezvous state in 'joinable' state, and attempt to join this
         particular version, and then wait for all other peers to join.
@@ -394,9 +401,9 @@ class EtcdRendezvous(object):
             state["version"] == expected_version
         ), "Logic error: failed to observe version mismatch"
 
-        return self.confirm_phase(expected_version, this_rank)
+        return self.confirm_phase(expected_version, this_rank, previous_global_rank)
 
-    def confirm_phase(self, expected_version, this_rank):
+    def confirm_phase(self, expected_version, this_rank, previous_global_rank):
         """
         Once the rendezvous state trainsitions from 'joinable' to 'frozen',
         we have every participant confirm their membership and setup per-member
@@ -405,7 +412,7 @@ class EtcdRendezvous(object):
         """
 
         log.info("All peers arrived. Confirming membership.")
-        self.confirm_membership(expected_version, this_rank)
+        self.confirm_membership(expected_version, this_rank, previous_global_rank)
 
         log.info("Waiting for confirmations from all peers.")
         active_version = self.wait_for_final(expected_version)
@@ -417,8 +424,13 @@ class EtcdRendezvous(object):
             )
         )
 
+        # PROJECT-PACTUM: Our coordinates are now set
+        key = self.get_path(f'rdzv/v_{expected_version}/rank_{this_rank}_coordinates')
+        coordinates = self.client.get(key)
+        this_coordinates = json.loads(coordinates.value)
+
         # Rendezvous version number; our rank in it; world size
-        return state["version"], this_rank, len(state["participants"])
+        return state["version"], this_rank, len(state["participants"]), this_coordinates, int(state['num_stages'])
 
     def handle_existing_rendezvous(self, expected_version):
         """
@@ -570,7 +582,52 @@ class EtcdRendezvous(object):
                     "Rendezvous state transition no longer possible. Must re-enter."
                 )
 
-    def confirm_membership(self, expected_version, this_rank):
+    def assign_coordinates(self, expected_version, state):
+        num_participants = len(state["participants"])
+
+        # Get the previous rendezvous state, if it exists
+        previous_state_key = self.get_path('/rdzv/previous_state')
+        try:
+            previous_state = self.client.get(previous_state_key)
+            previous_state = json.loads(previous_state.value)
+        except Exception:
+            previous_state = None
+
+        # Find the active coordinates from the previous state
+        active_coordinates = {}
+        if previous_state:
+            previous_version = previous_state['version']
+            previous_num_pipelines = previous_state['num_pipelines']
+            previous_num_stages = previous_state['num_stages']
+            for rank in range(num_participants):
+                key = self.get_path(f'rdzv/v_{expected_version}/rank_{rank}')
+                previous_rank = self.client.get(key).value
+                if int(previous_rank) < 0:
+                    continue
+                key = self.get_path(f'rdzv/v_{previous_version}/rank_{previous_rank}_coordinates')
+                active_coordinates[int(previous_rank)] = json.loads(self.client.get(key).value)
+
+        # Use the active coordinates, right now they're unused
+
+        num_pipelines = 1
+        num_stages = num_participants
+        num_active_nodes = num_pipelines * num_stages
+
+        state['num_pipelines'] = num_pipelines
+        state['num_stages'] = num_stages
+
+        if len(active_coordinates) == 0:
+            for rank in range(num_participants):
+                key = self.get_path(f'rdzv/v_{expected_version}/rank_{rank}_coordinates')
+                if rank >= num_active_nodes:
+                    value = []
+                else:
+                    value = [(rank // num_stages, rank % num_stages)]
+                self.client.set(key, value=json.dumps(value), ttl=None)
+
+        self.client.set(previous_state_key, value=json.dumps(state), ttl=None)
+
+    def confirm_membership(self, expected_version, this_rank, previous_global_rank):
         """
         Helper method for the confirm phase
         """
@@ -593,13 +650,14 @@ class EtcdRendezvous(object):
             this_lease_key = self.get_path(
                 "/rdzv/v_{}/rank_{}".format(expected_version, this_rank)
             )
-            self.client.set(this_lease_key, value=None, ttl=CONST_WORKER_KEEPALIVE_TTL)
+            self.client.set(this_lease_key, value=str(previous_global_rank), ttl=CONST_WORKER_KEEPALIVE_TTL)
 
             state["keep_alives"].append(this_lease_key)
             if len(state["keep_alives"]) == len(state["participants"]):
                 # Everyone confirmed (this rank is last to do so)
                 state["status"] = "final"
                 state["num_workers_waiting"] = 0
+                self.assign_coordinates(expected_version, state)
                 finalize = True
             else:
                 finalize = False
