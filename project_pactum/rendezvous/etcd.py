@@ -183,6 +183,15 @@ class EtcdRendezvousHandler(RendezvousHandler):
     def should_reconfigure(self):
         raise NotImplementedError()
 
+    def setup_kv_store(self):
+        _, state = self._rdzv_impl.get_rdzv_state()
+        rdzv_version = state['version']
+
+        log.info("Creating EtcdStore as the c10d::Store implementation")
+        store = self._rdzv_impl.setup_kv_store(rdzv_version)
+
+        return store
+
     def get_run_id(self) -> str:
         return self._rdzv_impl._run_id
 
