@@ -7,6 +7,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+import collections
 import json
 import logging
 import sys
@@ -36,6 +37,10 @@ log.propagate = False
 log.setLevel(logging.INFO)
 log.addHandler(_log_handler)
 
+GlobalInfo = collections.namedtuple(
+    'GlobalInfo',
+    ['rank', 'previous_coordinates', 'active_coordinates']
+)
 
 # Retryable failure exception means the we were too late to make
 # a desired state transition (e.g. because of a race condition),
@@ -157,10 +162,12 @@ class EtcdRendezvousHandler(RendezvousHandler):
 
         rdzv_version, rank, world_size, coordinates, num_stages = self._rdzv_impl.rendezvous_barrier(previous_global_rank)
 
+        global_decision = self._rdzv_impl.get_global_decision()
+
         log.info("Creating EtcdStore as the c10d::Store implementation")
         store = self._rdzv_impl.setup_kv_store(rdzv_version)
 
-        return store, rank, world_size, coordinates, num_stages
+        return store, rank, world_size, coordinates, num_stages, global_decision
 
     def is_closed(self):
         try:
@@ -604,18 +611,15 @@ class EtcdRendezvous(object):
             previous_state = None
 
         # Find the active coordinates from the previous state
-        active_coordinates = {}
+
         if previous_state:
-            previous_version = previous_state['version']
-            previous_num_pipelines = previous_state['num_pipelines']
-            previous_num_stages = previous_state['num_stages']
-            for rank in range(num_participants):
-                key = self.get_path(f"/rdzv/v_{expected_version}/rank_{rank}")
-                previous_rank = self.client.get(key).value
-                if int(previous_rank) < 0:
-                    continue
-                key = self.get_path(f"/rdzv/v_{previous_version}/rank_{previous_rank}_coordinates")
-                active_coordinates[int(previous_rank)] = json.loads(self.client.get(key).value)
+            current_coordinates = self.get_rank_coordinates_for_version(
+                version,
+                previous_version=previous_state['version']
+            )
+        else:
+            previous_version = '-1'
+            current_coordinates = []
 
         # Use the active coordinates, right now they're unused
 
@@ -623,10 +627,11 @@ class EtcdRendezvous(object):
         num_stages = num_participants
         num_active_nodes = num_pipelines * num_stages
 
-        state['num_pipelines'] = num_pipelines
-        state['num_stages'] = num_stages
+        state["previous_version"] = previous_version
+        state["num_pipelines"] = num_pipelines
+        state["num_stages"] = num_stages
 
-        if len(active_coordinates) == 0:
+        if len(current_coordinates) == 0:
             for rank in range(num_participants):
                 key = self.get_path(f'rdzv/v_{expected_version}/rank_{rank}_coordinates')
                 if rank >= num_active_nodes:
@@ -636,6 +641,35 @@ class EtcdRendezvous(object):
                 self.client.set(key, value=json.dumps(value), ttl=None)
 
         self.client.set(previous_state_key, value=json.dumps(state), ttl=None)
+
+    def get_global_decision(self):
+        _, state = self.get_rdzv_state()
+        version = state["version"]
+        previous_version = state["previous_version"]
+
+        if int(previous_version) < 0:
+            rank_previous_coordinates = {}
+        else:
+            rank_previous_coordinates = self.get_rank_coordinates_for_version(
+                version,
+                previous_version=previous_version
+            )
+
+        rank_active_coordinates = self.get_rank_coordinates_for_version(version)
+
+        global_decision = []
+
+        for rank, active_coordinates in rank_active_coordinates.items():
+            previous_coordinates = []
+            if rank in rank_previous_coordinates:
+                previous_coordinates = rank_previous_coordinates[rank]
+            global_decision.append(GlobalInfo(
+                rank=rank,
+                active_coordinates=active_coordinates,
+                previous_coordinates=previous_coordinates,
+            ))
+
+        return global_decision
 
     def confirm_membership(self, expected_version, this_rank, previous_global_rank):
         """
@@ -738,13 +772,8 @@ class EtcdRendezvous(object):
             except etcd.EtcdCompareFailed:
                 log.info("Announce self as waiting CAS unsuccessful, retrying")
 
-    def decide_reconfigure(self, global_steps_key, active_version, state):
-        should_reconfigure = False
-
-        version = state["version"]
-
-        num_workers_overloaded = 0
-        num_workers_waiting = int(state["num_workers_waiting"])
+    def get_rank_coordinates_for_version(self, version, previous_version=None):
+        rank_coordinates = {}
 
         alive_members = self.client.get(self.get_path(f"/rdzv/v_{version}"))
         keep_alive_keys = [ch.key for ch in alive_members.children]
@@ -756,11 +785,35 @@ class EtcdRendezvous(object):
                 continue
 
             rank = self.rank_pattern.match(key).group(2) 
+            if previous_version is not None:
+                try:
+                    previous_rank = self.client.get(key).value
+                except:
+                    continue
+                if int(previous_rank) < 0:
+                    continue
 
-            coordinates_key = self.get_path(f'rdzv/v_{version}/rank_{rank}_coordinates')
+            if previous_version is not None:
+                coordinates_key = self.get_path(f'rdzv/v_{previous_version}/rank_{previous_rank}_coordinates')
+            else:
+                coordinates_key = self.get_path(f'rdzv/v_{version}/rank_{rank}_coordinates')
             coordinates = self.client.get(coordinates_key)
             coordinates = json.loads(coordinates.value)
 
+            rank_coordinates[rank] = coordinates
+        return rank_coordinates
+
+    def decide_reconfigure(self, global_steps_key, active_version, state):
+        should_reconfigure = False
+
+        version = state["version"]
+
+        num_workers_overloaded = 0
+        num_workers_waiting = int(state["num_workers_waiting"])
+
+        # Check the current alive coordinates
+        rank_coordinates = self.get_rank_coordinates_for_version(version)
+        for rank, coordinates in rank_coordinates.items():
             if len(coordinates) > 2:
                 should_reconfigure = True
             elif len(coordinates) == 2:
