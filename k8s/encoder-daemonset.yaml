@@ -1,0 +1,46 @@
+
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: encoder
+  namespace: elastic-job
+spec:
+  selector:
+    matchLabels:
+      app: encoder
+  template:
+    metadata:
+      namespace: elastic-job
+      labels:
+        app: encoder
+    spec:
+      nodeSelector:
+        eks.amazonaws.com/nodegroup: ng-1
+      containers:
+      - name: project-pactum
+        image: 416609528037.dkr.ecr.us-west-2.amazonaws.com/project-pactum:gpt-test
+        imagePullPolicy: Always
+        command: ["python", "-m", "project_pactum.run"]
+        args:
+          - "--rdzv_backend=etcd"
+          - "--rdzv_endpoint=etcd-service:2379"
+          - "--rdzv_id=encoder"
+          - "--nnodes=1:64"
+          - "--nproc_per_node=1"
+          - "--project-pactum"
+          - "--max-pipe-parallel-size=24"
+          - "/workspace/external/deepspeed/DeepSpeedExamples/pipeline_parallelism/transformer.py"
+          - "--backend=nccl"
+          - "--deepspeed"
+          - "--deepspeed_config=/workspace/external/deepspeed/DeepSpeedExamples/pipeline_parallelism/transformer.json"
+        resources:
+          limits:
+            nvidia.com/gpu: 1
+        volumeMounts:
+          - mountPath: /data
+            name: data
+            subPath: data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: efs-a-claim
