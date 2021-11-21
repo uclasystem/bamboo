@@ -62,7 +62,7 @@ class ProjectPactumAgent(SimpleElasticAgent):
 
         spec = worker_group.spec
 
-        store, group_rank, group_world_size, coordinates, num_stages = spec.rdzv_handler.next_rendezvous()
+        store, group_rank, group_world_size, coordinates, num_stages, global_decision = spec.rdzv_handler.next_rendezvous()
         self._store = store
 
         workers = self._assign_worker_ranks(store, group_rank, group_world_size, spec, coordinates, num_stages)
