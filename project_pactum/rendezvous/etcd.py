@@ -639,6 +639,11 @@ class EtcdRendezvous(object):
                 else:
                     value = [(rank // num_stages, rank % num_stages)]
                 self.client.set(key, value=json.dumps(value), ttl=None)
+        else:
+            for rank in range(num_participants):
+                key = self.get_path(f'rdzv/v_{expected_version}/rank_{rank}_coordinates')
+                value = current_coordinates[rank]
+                self.client.set(key, value=json.dumps(value), ttl=None)
 
         self.client.set(previous_state_key, value=json.dumps(state), ttl=None)
 
