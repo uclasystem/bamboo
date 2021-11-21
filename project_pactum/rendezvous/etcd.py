@@ -148,8 +148,8 @@ class EtcdRendezvousHandler(RendezvousHandler):
     def get_backend(self) -> str:
         return "etcd"
 
-    def trigger_new_rendezvous(self):
-        return self._rdzv_impl.trigger_new_rendezvous()
+    def should_reconfigure(self, global_steps):
+        return self._rdzv_impl.should_reconfigure(global_steps)
 
     def next_rendezvous(self, previous_global_rank=-1):
         if isinstance(previous_global_rank, str):
@@ -181,10 +181,6 @@ class EtcdRendezvousHandler(RendezvousHandler):
         except etcd.EtcdKeyNotFound:
             pass
         return 0
-
-    # PROJECT-PACTUM: TODO
-    def should_reconfigure(self):
-        raise NotImplementedError()
 
     def setup_kv_store(self):
         _, state = self._rdzv_impl.get_rdzv_state()
@@ -266,6 +262,8 @@ class EtcdRendezvous(object):
             )
         except etcd.EtcdAlreadyExist:
             pass
+
+        self.rank_pattern = re.compile(".*/rdzv/v_(\d+)/rank_(\d+)")
 
     def __del__(self):
         # TODO: look into using weakref here instead.
@@ -598,7 +596,7 @@ class EtcdRendezvous(object):
         num_participants = len(state["participants"])
 
         # Get the previous rendezvous state, if it exists
-        previous_state_key = self.get_path('/rdzv/previous_state')
+        previous_state_key = self.get_path("/rdzv/previous_state")
         try:
             previous_state = self.client.get(previous_state_key)
             previous_state = json.loads(previous_state.value)
@@ -612,11 +610,11 @@ class EtcdRendezvous(object):
             previous_num_pipelines = previous_state['num_pipelines']
             previous_num_stages = previous_state['num_stages']
             for rank in range(num_participants):
-                key = self.get_path(f'rdzv/v_{expected_version}/rank_{rank}')
+                key = self.get_path(f"/rdzv/v_{expected_version}/rank_{rank}")
                 previous_rank = self.client.get(key).value
                 if int(previous_rank) < 0:
                     continue
-                key = self.get_path(f'rdzv/v_{previous_version}/rank_{previous_rank}_coordinates')
+                key = self.get_path(f"/rdzv/v_{previous_version}/rank_{previous_rank}_coordinates")
                 active_coordinates[int(previous_rank)] = json.loads(self.client.get(key).value)
 
         # Use the active coordinates, right now they're unused
@@ -740,18 +738,76 @@ class EtcdRendezvous(object):
             except etcd.EtcdCompareFailed:
                 log.info("Announce self as waiting CAS unsuccessful, retrying")
 
-    def trigger_new_rendezvous(self):
-        try:
-            active_version, state = self.get_rdzv_state()
-        except:
-            pass
+    def decide_reconfigure(self, global_steps_key, active_version, state):
+        should_reconfigure = False
 
-        if state["status"] == "final":
+        version = state["version"]
+
+        num_workers_overloaded = 0
+        num_workers_waiting = int(state["num_workers_waiting"])
+
+        alive_members = self.client.get(self.get_path(f"/rdzv/v_{version}"))
+        keep_alive_keys = [ch.key for ch in alive_members.children]
+        for key in state["keep_alives"]:
+            if key.endswith("_coordinates"):
+                continue
+
+            if key not in keep_alive_keys:
+                continue
+
+            rank = self.rank_pattern.match(key).group(2) 
+
+            coordinates_key = self.get_path(f'rdzv/v_{version}/rank_{rank}_coordinates')
+            coordinates = self.client.get(coordinates_key)
+            coordinates = json.loads(coordinates.value)
+
+            if len(coordinates) > 2:
+                should_reconfigure = True
+            elif len(coordinates) == 2:
+                num_workers_overloaded += 1
+
+        if num_workers_waiting > 0 and num_workers_waiting >= num_workers_overloaded:
+            should_reconfigure = True
+
+        self.client.write(
+            global_steps_key, value=json.dumps(should_reconfigure), prevExist=False
+        )
+
+        # If the key didn't already exist, we should delete the current rendezvous
+        if should_reconfigure:
+            self.client.delete(
+                key=self.get_path("/rdzv/active_version"),
+                prevValue=active_version.value,
+            )
+
+        return should_reconfigure
+
+    def should_reconfigure(self, global_steps):
+
+        global_steps_key = self.get_path(f"/rdzv/global_steps_{global_steps}")
+
+        while True:
+            # Get the current state, if the key doesn't exist, we need to
+            # reconfigure
             try:
-                self.client.delete(
-                    key=self.get_path("/rdzv/active_version"),
-                    prevValue=active_version.value,
-                )
+                active_version, state = self.get_rdzv_state()
+            except:
+                return True
+
+            # If this isn't a final state, we need to reconfigure anyways
+            if state["status"] != "final":
+                return True
+
+            # Check if a decision has already been made
+            try:
+                global_steps = self.client.get(global_steps_key)
+                return json.loads(global_steps.value)
+            except etcd.EtcdKeyNotFound:
+                pass
+
+            # Try to make the decision, if it fails just retry
+            try:
+                return self.decide_reconfigure(global_steps_key, active_version, state)
             except:
                 pass
 
@@ -771,40 +827,42 @@ class EtcdRendezvous(object):
             if state["status"] != "final" or state["version"] != expected_version:
                 return
 
-            # Check if current rendezvous state is valid, in the sense that all
-            # its members are alive (renewing their lease).
-            # If not, try destroy this rendezvous, so a new one can be created.
-            alive_members = self.client.get(
-                self.get_path("/rdzv/v_{version}".format(version=expected_version))
-            )
-            keep_alive_keys = [ch.key for ch in alive_members.children]
+            # PROJECT-PACTUM: Do not destroy the rendezvous if there's a
+            #                 failure. Failures are fine :)
+            # # Check if current rendezvous state is valid, in the sense that all
+            # # its members are alive (renewing their lease).
+            # # If not, try destroy this rendezvous, so a new one can be created.
+            # alive_members = self.client.get(
+            #     self.get_path("/rdzv/v_{version}".format(version=expected_version))
+            # )
+            # keep_alive_keys = [ch.key for ch in alive_members.children]
 
-            for key in state["keep_alives"]:
-                if key not in keep_alive_keys:
-                    # This participant didn't renew their lease. We'll declare this
-                    # rendezvous version as dead (but only if it hadn't changed)
-                    log.info("Keep-alive key {} is not renewed.".format(key))
-                    log.info(
-                        "Rendevous version {} is incomplete. ".format(expected_version)
-                    )
-                    log.info("Attempting to destroy it.")
+            # for key in state["keep_alives"]:
+            #     if key not in keep_alive_keys:
+            #         # This participant didn't renew their lease. We'll declare this
+            #         # rendezvous version as dead (but only if it hadn't changed)
+            #         log.info("Keep-alive key {} is not renewed.".format(key))
+            #         log.info(
+            #             "Rendevous version {} is incomplete. ".format(expected_version)
+            #         )
+            #         log.info("Attempting to destroy it.")
 
-                    # Compare-and-delete operation. Throws if compare failed,
-                    # which means rendezvous was already destroyed/re-created/closed,
-                    # and we can try to re-enter the barrier.
-                    self.client.delete(
-                        key=self.get_path("/rdzv/active_version"),
-                        prevValue=active_version.value,
-                    )
+            #         # Compare-and-delete operation. Throws if compare failed,
+            #         # which means rendezvous was already destroyed/re-created/closed,
+            #         # and we can try to re-enter the barrier.
+            #         self.client.delete(
+            #             key=self.get_path("/rdzv/active_version"),
+            #             prevValue=active_version.value,
+            #         )
 
-                    log.info(
-                        "Destroyed rendezvous version {} successfully.".format(
-                            expected_version
-                        )
-                    )
+            #         log.info(
+            #             "Destroyed rendezvous version {} successfully.".format(
+            #                 expected_version
+            #             )
+            #         )
 
-                    # We can return (and retry) immediately
-                    return
+            #         # We can return (and retry) immediately
+            #         return
 
             # Existing rendezvous seems valid, no reason to destroy it.
             # We just have to wait until something changes and re-check.
