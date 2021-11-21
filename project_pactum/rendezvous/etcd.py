@@ -614,7 +614,6 @@ class EtcdRendezvous(object):
             previous_state = None
 
         # Find the active coordinates from the previous state
-
         if previous_state:
             current_coordinates = self.get_rank_coordinates_for_version(
                 version,
@@ -634,19 +633,46 @@ class EtcdRendezvous(object):
         state["num_pipelines"] = num_pipelines
         state["num_stages"] = num_stages
 
-        if len(current_coordinates) == 0:
+        previous_num_pipelines = previous_state["num_pipelines"]
+        previous_num_stages = previous_state["num_stages"]
+
+
+        required_coordinates = = []
+        for i in range(num_active_nodes):
+            required_coordinates.append((rank // num_stages, rank % num_stages))
+
+        rank_active_coordinates = {}
+
+
+        for rank, coordinates in current_coordinates.items():
+            # If it's the same grid, just pick one coordinate and retain it
+            if num_pipelines == previous_num_pipelines and num_stages == previous_num_pipelines:
+                if len(coordinates) == 0:
+                    continue
+                coordinate = coordinates[0]
+                required_coordinates.remove(coordinate)
+                rank_active_coordinates[rank] = [coordinate]
+                continue
+
+        # Fill in any remaining coordinates
+        while len(required_coordinates) > 0:
+            coordinate = required_coordinates
             for rank in range(num_participants):
-                key = self.get_path(f'rdzv/v_{expected_version}/rank_{rank}_coordinates')
-                if rank >= num_active_nodes:
-                    value = []
-                else:
-                    value = [(rank // num_stages, rank % num_stages)]
-                self.client.set(key, value=json.dumps(value), ttl=None)
-        else:
-            for rank in range(num_participants):
-                key = self.get_path(f'rdzv/v_{expected_version}/rank_{rank}_coordinates')
-                value = current_coordinates[rank]
-                self.client.set(key, value=json.dumps(value), ttl=None)
+                rank = str(rank)
+                if rank not in rank_active_coordinates:
+                    rank_active_coordinates[rank] = [coordinate]
+                    break
+
+        # Initialize the missing ranks
+        for rank in range(num_participants):
+            rank = str(rank)
+            if rank not in rank_active_coordinates:
+                rank_active_coordinates[rank] = []
+
+        # Set the new active coordinate keys
+        for rank, coordinates in rank_active_coordinates.items():
+            key = self.get_path(f'rdzv/v_{expected_version}/rank_{rank}_coordinates')
+            self.client.set(key, value=json.dumps(coordinates), ttl=None)
 
         self.client.set(previous_state_key, value=json.dumps(state), ttl=None)
 
