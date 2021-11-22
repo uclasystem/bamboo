@@ -62,7 +62,7 @@ class ProjectPactumAgent(SimpleElasticAgent):
 
         spec = worker_group.spec
 
-        store, group_rank, group_world_size, coordinates, num_stages, global_decision = spec.rdzv_handler.next_rendezvous()
+        store, group_rank, group_world_size, num_pipelines, num_stages, global_decision = spec.rdzv_handler.next_rendezvous()
         self._store = store
 
         workers = self._assign_worker_ranks(store, group_rank, group_world_size, spec, coordinates, num_stages)
@@ -83,8 +83,9 @@ class ProjectPactumAgent(SimpleElasticAgent):
             f"  master_port={master_port}\n"
             f"  group_rank={group_rank}\n"
             f"  group_world_size={group_world_size}\n"
-            f"  coordinates={coordinates}\n"
+            f"  num_pipelines={num_pipelines}\n"
             f"  num_stages={num_stages}\n"
+            f"  global_decision={global_decision}\n"
             f"  local_ranks={[worker.local_rank for worker in workers]}\n"
             f"  role_ranks={[worker.role_rank for worker in workers]}\n"
             f"  global_ranks={[worker.global_rank for worker in workers]}\n"

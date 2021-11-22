@@ -160,14 +160,14 @@ class EtcdRendezvousHandler(RendezvousHandler):
         if isinstance(previous_global_rank, str):
             previous_global_rank = int(previous_global_rank)
 
-        rdzv_version, rank, world_size, coordinates, num_stages = self._rdzv_impl.rendezvous_barrier(previous_global_rank)
+        rdzv_version, rank, world_size, num_pipelines, num_stages = self._rdzv_impl.rendezvous_barrier(previous_global_rank)
 
         global_decision = self._rdzv_impl.get_global_decision()
 
         log.info("Creating EtcdStore as the c10d::Store implementation")
         store = self._rdzv_impl.setup_kv_store(rdzv_version)
 
-        return store, rank, world_size, coordinates, num_stages, global_decision
+        return store, rank, world_size, num_pipelines, num_stages, global_decision
 
     def is_closed(self):
         try:
@@ -450,7 +450,7 @@ class EtcdRendezvous(object):
         this_coordinates = json.loads(coordinates.value)
 
         # Rendezvous version number; our rank in it; world size
-        return state["version"], this_rank, len(state["participants"]), this_coordinates, int(state['num_stages'])
+        return state["version"], this_rank, len(state["participants"]), int(state['num_pipelines']), int(state['num_stages'])
 
     def handle_existing_rendezvous(self, expected_version):
         """
