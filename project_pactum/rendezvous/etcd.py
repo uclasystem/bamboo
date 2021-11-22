@@ -632,19 +632,21 @@ class EtcdRendezvous(object):
         num_active_nodes = num_pipelines * num_stages
 
         state["previous_version"] = previous_version
-        state["num_pipelines"] = num_pipelines
-        state["num_stages"] = num_stages
+        state["num_pipelines"] = str(num_pipelines)
+        state["num_stages"] = str(num_stages)
 
-        previous_num_pipelines = previous_state["num_pipelines"]
-        previous_num_stages = previous_state["num_stages"]
-
+        if previous_state:
+            previous_num_pipelines = int(previous_state["num_pipelines"])
+            previous_num_stages = int(previous_state["num_stages"])
+        else:
+            previous_num_pipelines = 0
+            previous_num_stages = 0
 
         required_coordinates = []
         for i in range(num_active_nodes):
             required_coordinates.append((rank // num_stages, rank % num_stages))
 
         rank_active_coordinates = {}
-
 
         for rank, coordinates in current_coordinates.items():
             # If it's the same grid, just pick one coordinate and retain it
@@ -745,12 +747,7 @@ class EtcdRendezvous(object):
                 # Everyone confirmed (this rank is last to do so)
                 state["status"] = "final"
                 state["num_workers_waiting"] = 0
-                try:
-                    self.assign_coordinates(expected_version, state)
-                except Exception as e:
-                    import sys
-                    print('EXCEPTION', e, flush=True)
-                    sys.exit(-1)
+                self.assign_coordinates(expected_version, state)
                 finalize = True
             else:
                 finalize = False
