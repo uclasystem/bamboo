@@ -640,7 +640,7 @@ class EtcdRendezvous(object):
 
         required_coordinates = []
         for i in range(num_active_nodes):
-            required_coordinates.append((rank // num_stages, rank % num_stages))
+            required_coordinates.append((i // num_stages, i % num_stages))
 
         rank_active_coordinates = {}
 
@@ -744,7 +744,12 @@ class EtcdRendezvous(object):
                 # Everyone confirmed (this rank is last to do so)
                 state["status"] = "final"
                 state["num_workers_waiting"] = 0
-                self.assign_coordinates(expected_version, state)
+                try:
+                    self.assign_coordinates(expected_version, state)
+                except Exception as e:
+                    import sys
+                    print('EXCEPTION', e, flush=True)
+                    sys.exit(-1)
                 finalize = True
             else:
                 finalize = False
