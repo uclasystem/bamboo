@@ -14,6 +14,7 @@ import sys
 import threading
 import time
 from typing import Optional
+import re
 
 import etcd  # type: ignore[import]
 from torch.distributed.elastic.rendezvous import (
@@ -616,7 +617,8 @@ class EtcdRendezvous(object):
         # Find the active coordinates from the previous state
         if previous_state:
             current_coordinates = self.get_rank_coordinates_for_version(
-                version,
+                state,
+                expected_version,
                 previous_version=previous_state['version']
             )
         else:
@@ -692,11 +694,12 @@ class EtcdRendezvous(object):
             rank_previous_coordinates = {}
         else:
             rank_previous_coordinates = self.get_rank_coordinates_for_version(
+                state,
                 version,
                 previous_version=previous_version
             )
 
-        rank_active_coordinates = self.get_rank_coordinates_for_version(version)
+        rank_active_coordinates = self.get_rank_coordinates_for_version(state, version)
 
         global_decision = []
 
@@ -818,7 +821,7 @@ class EtcdRendezvous(object):
             except etcd.EtcdCompareFailed:
                 log.info("Announce self as waiting CAS unsuccessful, retrying")
 
-    def get_rank_coordinates_for_version(self, version, previous_version=None):
+    def get_rank_coordinates_for_version(self, state, version, previous_version=None):
         rank_coordinates = {}
 
         alive_members = self.client.get(self.get_path(f"/rdzv/v_{version}"))
@@ -858,7 +861,7 @@ class EtcdRendezvous(object):
         num_workers_waiting = int(state["num_workers_waiting"])
 
         # Check the current alive coordinates
-        rank_coordinates = self.get_rank_coordinates_for_version(version)
+        rank_coordinates = self.get_rank_coordinates_for_version(state, version)
         for rank, coordinates in rank_coordinates.items():
             if len(coordinates) > 2:
                 should_reconfigure = True
