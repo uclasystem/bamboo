@@ -161,14 +161,14 @@ class EtcdRendezvousHandler(RendezvousHandler):
         if isinstance(previous_global_rank, str):
             previous_global_rank = int(previous_global_rank)
 
-        rdzv_version, rank, world_size, coordinates, num_stages = self._rdzv_impl.rendezvous_barrier(previous_global_rank)
+        rdzv_version, rank, world_size, num_pipelines, num_stages = self._rdzv_impl.rendezvous_barrier(previous_global_rank)
 
         global_decision = self._rdzv_impl.get_global_decision()
 
         log.info("Creating EtcdStore as the c10d::Store implementation")
         store = self._rdzv_impl.setup_kv_store(rdzv_version)
 
-        return store, rank, world_size, coordinates, num_stages, global_decision
+        return store, rank, world_size, num_pipelines, num_stages, global_decision
 
     def is_closed(self):
         try:
@@ -198,6 +198,9 @@ class EtcdRendezvousHandler(RendezvousHandler):
         store = self._rdzv_impl.setup_kv_store(rdzv_version)
 
         return store
+
+    def update_coordinates(self, rank, coordinates):
+        self._rdzv_impl.update_coordinates(rank, coordinates)
 
     def get_run_id(self) -> str:
         return self._rdzv_impl._run_id
@@ -448,7 +451,7 @@ class EtcdRendezvous(object):
         this_coordinates = json.loads(coordinates.value)
 
         # Rendezvous version number; our rank in it; world size
-        return state["version"], this_rank, len(state["participants"]), this_coordinates, int(state['num_stages'])
+        return state["version"], this_rank, len(state["participants"]), int(state['num_pipelines']), int(state['num_stages'])
 
     def handle_existing_rendezvous(self, expected_version):
         """
@@ -612,7 +615,6 @@ class EtcdRendezvous(object):
             previous_state = None
 
         # Find the active coordinates from the previous state
-
         if previous_state:
             current_coordinates = self.get_rank_coordinates_for_version(
                 state,
@@ -633,21 +635,55 @@ class EtcdRendezvous(object):
         state["num_pipelines"] = num_pipelines
         state["num_stages"] = num_stages
 
-        if len(current_coordinates) == 0:
+        previous_num_pipelines = previous_state["num_pipelines"]
+        previous_num_stages = previous_state["num_stages"]
+
+
+        required_coordinates = = []
+        for i in range(num_active_nodes):
+            required_coordinates.append((rank // num_stages, rank % num_stages))
+
+        rank_active_coordinates = {}
+
+
+        for rank, coordinates in current_coordinates.items():
+            # If it's the same grid, just pick one coordinate and retain it
+            if num_pipelines == previous_num_pipelines and num_stages == previous_num_pipelines:
+                if len(coordinates) == 0:
+                    continue
+                coordinate = coordinates[0]
+                required_coordinates.remove(coordinate)
+                rank_active_coordinates[rank] = [coordinate]
+                continue
+
+        # Fill in any remaining coordinates
+        while len(required_coordinates) > 0:
+            coordinate = required_coordinates
             for rank in range(num_participants):
-                key = self.get_path(f'rdzv/v_{expected_version}/rank_{rank}_coordinates')
-                if rank >= num_active_nodes:
-                    value = []
-                else:
-                    value = [(rank // num_stages, rank % num_stages)]
-                self.client.set(key, value=json.dumps(value), ttl=None)
-        else:
-            for rank in range(num_participants):
-                key = self.get_path(f'rdzv/v_{expected_version}/rank_{rank}_coordinates')
-                value = current_coordinates[rank]
-                self.client.set(key, value=json.dumps(value), ttl=None)
+                rank = str(rank)
+                if rank not in rank_active_coordinates:
+                    rank_active_coordinates[rank] = [coordinate]
+                    break
+
+        # Initialize the missing ranks
+        for rank in range(num_participants):
+            rank = str(rank)
+            if rank not in rank_active_coordinates:
+                rank_active_coordinates[rank] = []
+
+        # Set the new active coordinate keys
+        for rank, coordinates in rank_active_coordinates.items():
+            key = self.get_path(f'rdzv/v_{expected_version}/rank_{rank}_coordinates')
+            self.client.set(key, value=json.dumps(coordinates), ttl=None)
 
         self.client.set(previous_state_key, value=json.dumps(state), ttl=None)
+
+    def update_coordinates(self, rank, coordinates):
+        _, state = self.get_rdzv_state()
+        version = state["version"]
+        result = self.client.get(self.get_path("/rdzv/v_{version}/rank_{rank}_coordinates"))
+        result.value = json.dumps(coordinates)
+        self.client.update(result)
 
     def get_global_decision(self):
         _, state = self.get_rdzv_state()
