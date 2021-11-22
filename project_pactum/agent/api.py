@@ -65,7 +65,7 @@ class ProjectPactumAgent(SimpleElasticAgent):
         store, group_rank, group_world_size, num_pipelines, num_stages, global_decision = spec.rdzv_handler.next_rendezvous()
         self._store = store
 
-        workers = self._assign_worker_ranks(store, group_rank, group_world_size, spec, coordinates, num_stages)
+        workers = self._assign_worker_ranks(store, group_rank, group_world_size, spec, num_pipelines, num_stages, global_decision)
         worker_group.workers = workers
         worker_group.store = store
         worker_group.group_rank = group_rank
@@ -156,7 +156,7 @@ class ProjectPactumAgent(SimpleElasticAgent):
 
     def _assign_worker_ranks(
         self, store, group_rank: int, group_world_size: int, spec: WorkerSpec,
-        coordinates, num_stages
+        num_pipelines, num_stages, global_decision
     ) -> List[ProjectPactumWorker]:
         """
         Determines proper ranks for worker processes. The rank assignment
@@ -193,6 +193,13 @@ class ProjectPactumAgent(SimpleElasticAgent):
             role_infos, role_pos, role_start_idx, role_end_idx + 1
         )
         workers = []
+
+        # PROJECT-PACTUM: Lookup coordinates from global decision
+        coordinates = []
+        for info in global_decision:
+            if info.rank == group_rank:
+                coordinates = info.active_coordinates
+
         for ind in range(spec.local_world_size):
             # PROJECT-PACTUM: This is the new worker, if it doesn't have any
             #                 coordinates then we shouldn't even start it
@@ -205,8 +212,9 @@ class ProjectPactumAgent(SimpleElasticAgent):
                 role_rank=role_ranks[ind],
                 world_size=worker_world_size,
                 role_world_size=role_world_size,
-                coordinates=coordinates,
+                num_pipelines=num_pipelines,
                 num_stages=num_stages,
+                coordinates,
             )
             workers.append(worker)
         return workers
@@ -279,6 +287,7 @@ class ProjectPactumAgent(SimpleElasticAgent):
                 "TORCHELASTIC_RUN_ID": spec.rdzv_handler.get_run_id(),
                 "TORCHELASTIC_USE_AGENT_STORE": str(use_agent_store),
                 "NCCL_ASYNC_ERROR_HANDLING": str(1),
+                "PROJECT_PACTUM_NUM_PIPELINES": str(worker.num_pipelines),
                 "PROJECT_PACTUM_NUM_STAGES": str(worker.num_stages),
                 "PROJECT_PACTUM_COORDINATES": json.dumps(worker.coordinates),
             }
