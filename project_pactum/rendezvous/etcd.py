@@ -710,7 +710,7 @@ class EtcdRendezvous(object):
             if rank in rank_previous_coordinates:
                 previous_coordinates = rank_previous_coordinates[rank]
             global_decision.append(GlobalInfo(
-                rank=rank,
+                rank=int(rank),
                 active_coordinates=active_coordinates,
                 previous_coordinates=previous_coordinates,
             ))
