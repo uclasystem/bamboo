@@ -638,8 +638,7 @@ class EtcdRendezvous(object):
         previous_num_pipelines = previous_state["num_pipelines"]
         previous_num_stages = previous_state["num_stages"]
 
-
-        required_coordinates = = []
+        required_coordinates = []
         for i in range(num_active_nodes):
             required_coordinates.append((rank // num_stages, rank % num_stages))
 
