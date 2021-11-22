@@ -214,7 +214,7 @@ class ProjectPactumAgent(SimpleElasticAgent):
                 role_world_size=role_world_size,
                 num_pipelines=num_pipelines,
                 num_stages=num_stages,
-                coordinates,
+                coordinates=coordinates,
             )
             workers.append(worker)
         return workers

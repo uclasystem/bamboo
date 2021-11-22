@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 OPT=$1
 if [[ ! -z $OPT ]]; then

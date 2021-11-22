@@ -31,6 +31,7 @@ spec:
           - "--max-pipe-parallel-size=24"
           - "/workspace/external/deepspeed/DeepSpeedExamples/pipeline_parallelism/transformer.py"
           - "--backend=nccl"
+          - "--redundancy_level=1"
           - "--deepspeed"
           - "--deepspeed_config=/workspace/external/deepspeed/DeepSpeedExamples/pipeline_parallelism/transformer.json"
         resources:

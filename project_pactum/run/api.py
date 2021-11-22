@@ -321,6 +321,7 @@ def launch_agent(
                 'PROJECT_PACTUM_MAX_NODES': str(config.max_nodes),
                 'PROJECT_PACTUM_RDZV_CONFIGS': json.dumps(config.rdzv_configs),
                 'PROJECT_PACTUM_MAX_PIPE_PARALLEL_SIZE': str(config.max_pipe_parallel_size),
+                'NCCL_BLOCKING_WAIT': str(1),
             }
             agent = ProjectPactumAgent(
                 spec=spec, start_method=config.start_method, log_dir=config.log_dir,

@@ -10,7 +10,7 @@ managedNodeGroups:
   - name: ng-1
     instanceType: g4dn.2xlarge
     desiredCapacity: 4
-    volumeSize: 40
+    volumeSize: 128
     ssh:
       publicKeyName: jon
     availabilityZones: ["us-west-2a"]
