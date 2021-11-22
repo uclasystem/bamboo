@@ -623,7 +623,7 @@ class EtcdRendezvous(object):
             )
         else:
             previous_version = '-1'
-            current_coordinates = []
+            current_coordinates = {}
 
         # Use the active coordinates, right now they're unused
 
@@ -660,7 +660,7 @@ class EtcdRendezvous(object):
 
         # Fill in any remaining coordinates
         while len(required_coordinates) > 0:
-            coordinate = required_coordinates
+            coordinate = required_coordinates.pop(0)
             for rank in range(num_participants):
                 rank = str(rank)
                 if rank not in rank_active_coordinates:
