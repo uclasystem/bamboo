@@ -8,7 +8,7 @@ metadata:
 
 managedNodeGroups:
   - name: ng-1
-    instanceType: g4dn.xlarge
+    instanceType: g4dn.2xlarge
     desiredCapacity: 4
     volumeSize: 40
     ssh:
