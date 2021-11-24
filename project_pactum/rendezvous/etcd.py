@@ -15,6 +15,7 @@ import threading
 import time
 from typing import Optional
 import re
+import traceback
 
 import etcd  # type: ignore[import]
 from torch.distributed.elastic.rendezvous import (
@@ -341,7 +342,9 @@ class EtcdRendezvous(object):
                 # to avoid spamming etcd
                 # FIXME: there are a few things that fall under this like
                 # etcd.EtcdKeyNotFound, etc, which could be handled more explicitly.
-                log.info("Rendezvous attempt failed, will retry. Reason: " + str(e))
+                log.info("Rendezvous attempt failed, will retry. Reason:")
+                traceback.print_exc()
+
                 time.sleep(1)
 
     def init_phase(self, previous_global_rank):
@@ -624,6 +627,7 @@ class EtcdRendezvous(object):
                 expected_version,
                 previous_version=previous_state['version']
             )
+            previous_version = previous_state['version']
         else:
             previous_version = '-1'
             current_coordinates = {}
