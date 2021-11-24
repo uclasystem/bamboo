@@ -157,6 +157,9 @@ class EtcdRendezvousHandler(RendezvousHandler):
     def should_reconfigure(self, global_steps):
         return self._rdzv_impl.should_reconfigure(global_steps)
 
+    def get_global_decision(self):
+        return self._rdzv_impl.get_global_decision()
+
     def next_rendezvous(self, previous_global_rank=-1):
         if isinstance(previous_global_rank, str):
             previous_global_rank = int(previous_global_rank)
@@ -683,7 +686,7 @@ class EtcdRendezvous(object):
     def update_coordinates(self, rank, coordinates):
         _, state = self.get_rdzv_state()
         version = state["version"]
-        result = self.client.get(self.get_path("/rdzv/v_{version}/rank_{rank}_coordinates"))
+        result = self.client.get(self.get_path(f"/rdzv/v_{version}/rank_{rank}_coordinates"))
         result.value = json.dumps(coordinates)
         self.client.update(result)
 
@@ -863,6 +866,8 @@ class EtcdRendezvous(object):
             if len(coordinates) > 2:
                 should_reconfigure = True
             elif len(coordinates) == 2:
+                ## PROJECT_PACTUM HACK: Temporarily forcing this for testing
+                should_reconfigure = True
                 num_workers_overloaded += 1
 
         if num_workers_waiting > 0 and num_workers_waiting >= num_workers_overloaded:

@@ -69,6 +69,7 @@ class ProjectPactumLaunchConfig:
     max_pipe_parallel_size: int = 2
 
     def __post_init__(self):
+        self.rdzv_configs["last_call_timeout"] = 5
         self.rdzv_configs["timeout"] = self.rdzv_timeout
 
 
