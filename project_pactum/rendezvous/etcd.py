@@ -8,14 +8,19 @@
 # LICENSE file in the root directory of this source tree.
 
 import collections
+import functools
 import json
 import logging
+import socket
 import sys
 import threading
 import time
 from typing import Optional
 import re
 import traceback
+from contextlib import closing
+
+from torch.distributed.elastic import rendezvous
 
 import etcd  # type: ignore[import]
 from torch.distributed.elastic.rendezvous import (
@@ -26,9 +31,10 @@ from torch.distributed.elastic.rendezvous import (
     RendezvousTimeoutError,
 )
 
+import torch.distributed.elastic.utils.store as store_util
 from torch.distributed.elastic.rendezvous.utils import parse_rendezvous_endpoint
 from torch.distributed.elastic.rendezvous.etcd_store import EtcdStore, cas_delay
-
+from torch.distributed.elastic.agent.server.api import _RoleInstanceInfo
 
 _log_fmt = logging.Formatter("%(levelname)s %(asctime)s %(message)s")
 _log_handler = logging.StreamHandler(sys.stderr)
@@ -79,6 +85,42 @@ CONST_WORKER_KEEPALIVE_TTL = 10
 # etcd server is persistent), and has no affect on correctnes, but should be
 # larger than any timeouts that a worker process is expected to survive:
 CONST_RUNID_SUBROOT_TTL = 7200  # 2 hours
+
+def _get_socket_with_port() -> socket.socket:
+    """
+    Returns a free port on localhost that is "reserved" by binding a temporary
+    socket on it. Close the socket before passing the port to the entity
+    that requires it. Usage example
+
+    ::
+
+    sock = _get_socket_with_port()
+    with closing(sock):
+        port = sock.getsockname()[1]
+        sock.close()
+        # there is still a race-condition that some other process
+        # may grab this port before func() runs
+        func(port)
+    """
+
+    addrs = socket.getaddrinfo(
+        host="localhost", port=None, family=socket.AF_UNSPEC, type=socket.SOCK_STREAM
+    )
+    for addr in addrs:
+        family, type, proto, _, _ = addr
+        s = socket.socket(family, type, proto)
+        try:
+            s.bind(("localhost", 0))
+            s.listen(0)
+            return s
+        except OSError as e:
+            s.close()
+            log.info("Socket creation attempt failed.", exc_info=e)
+    raise RuntimeError("Failed to create a socket")
+
+
+def _get_fq_hostname() -> str:
+    return socket.getfqdn(socket.gethostname())
 
 
 class EtcdRendezvousHandler(RendezvousHandler):
@@ -174,6 +216,74 @@ class EtcdRendezvousHandler(RendezvousHandler):
 
         return store, rank, world_size, num_pipelines, num_stages, global_decision
 
+    def set_master_addr_port(self, store, master_addr=None, master_port=None):
+        if master_port is None:
+            sock = _get_socket_with_port()
+            with closing(sock):
+                master_port = sock.getsockname()[1]
+
+        if master_addr is None:
+            master_addr = _get_fq_hostname()
+
+        store.set("MASTER_ADDR", master_addr.encode(encoding="UTF-8"))
+        store.set("MASTER_PORT", str(master_port).encode(encoding="UTF-8"))
+
+    def get_master_addr_port(self, store):
+        master_addr = store.get("MASTER_ADDR").decode(encoding="UTF-8")
+        master_port = int(store.get("MASTER_PORT").decode(encoding="UTF-8"))
+        return (master_addr, master_port)
+
+    def _get_ranks(self, role_infos, role_idx, start_idx=0, end_idx=-1):
+        if end_idx == -1:
+            end_idx = len(role_infos)
+        prefix_sum = 0
+        total_sum = 0
+        for idx in range(start_idx, end_idx):
+            if role_idx > idx:
+                prefix_sum += role_infos[idx].local_world_size
+            total_sum += role_infos[idx].local_world_size
+        return (
+            total_sum,
+            list(range(prefix_sum, prefix_sum + role_infos[role_idx].local_world_size)),
+        )
+
+    def assign_worker_ranks(self, store, group_rank, group_world_size, spec, num_pipelines, num_stages, global_decision):
+        role_infos = self._share_and_gather(store, group_rank, group_world_size, spec)
+        my_role_info = role_infos[group_rank]
+        worker_world_size, worker_global_ranks = self._get_ranks(role_infos, group_rank)
+        role_infos = sorted(
+            role_infos, key=functools.cmp_to_key(_RoleInstanceInfo.compare)
+        )
+
+        role_start_idx, role_end_idx = _RoleInstanceInfo.find_role_boundaries(
+            role_infos, my_role_info.role
+        )
+
+        role_pos = next(
+            idx
+            for idx, role_info in enumerate(role_infos)
+            if _RoleInstanceInfo.compare(role_info, my_role_info) == 0
+        )
+
+        role_world_size, role_ranks = self._get_ranks(
+            role_infos, role_pos, role_start_idx, role_end_idx + 1
+        )
+
+    def _share_and_gather(self, store, group_rank, group_world_size, spec):
+        agent_role_info = _RoleInstanceInfo(
+            spec.role, group_rank, spec.local_world_size
+        )
+        key_prefix = "torchelastic/role_info"
+        agent_config_enc = agent_role_info.serialize()
+        role_infos_bytes = store_util.synchronize(
+            store, agent_config_enc, group_rank, group_world_size, key_prefix
+        )
+        role_infos = [
+            _RoleInstanceInfo.deserialize(role_info_bytes)
+            for role_info_bytes in role_infos_bytes
+        ]
+        return role_infos
+
     def is_closed(self):
         try:
             _, state = self._rdzv_impl.get_rdzv_state()
@@ -205,6 +315,12 @@ class EtcdRendezvousHandler(RendezvousHandler):
 
     def update_coordinates(self, rank, coordinates):
         self._rdzv_impl.update_coordinates(rank, coordinates)
+
+    def previous_version_exists(self):
+        return self._rdzv_impl.previous_version_exists()
+
+    def get_previous_state(self):
+        return self._rdzv_impl.get_previous_state()
 
     def get_run_id(self) -> str:
         return self._rdzv_impl._run_id
@@ -693,6 +809,18 @@ class EtcdRendezvous(object):
         result = self.client.get(self.get_path(f"/rdzv/v_{version}/rank_{rank}_coordinates"))
         result.value = json.dumps(coordinates)
         self.client.update(result)
+
+    def previous_version_exists(self):
+        _, state = self.get_rdzv_state()
+        previous_version = state['previous_version']
+
+        return int(previous_version) > 0
+
+    def get_previous_state(self):
+        previous_state_key = self.get_path('/rdzv/previous_state')
+        previous_state = self.client.get(previous_state_key)
+
+        return json.loads(previous_state.value)
 
     def get_global_decision(self):
         _, state = self.get_rdzv_state()

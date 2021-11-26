@@ -176,22 +176,28 @@ class ProjectPactumAgent(SimpleElasticAgent):
         """
 
         role_infos = self._share_and_gather(store, group_rank, group_world_size, spec)
+
         my_role_info = role_infos[group_rank]
         worker_world_size, worker_global_ranks = self._get_ranks(role_infos, group_rank)
+
         role_infos = sorted(
             role_infos, key=functools.cmp_to_key(_RoleInstanceInfo.compare)
         )
+
         role_start_idx, role_end_idx = _RoleInstanceInfo.find_role_boundaries(
             role_infos, my_role_info.role
         )
+
         role_pos = next(
             idx
             for idx, role_info in enumerate(role_infos)
             if _RoleInstanceInfo.compare(role_info, my_role_info) == 0
         )
+
         role_world_size, role_ranks = self._get_ranks(
             role_infos, role_pos, role_start_idx, role_end_idx + 1
         )
+
         workers = []
 
         # PROJECT-PACTUM: Lookup coordinates from global decision
