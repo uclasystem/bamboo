@@ -9,6 +9,7 @@ RUN cd /workspace/external/apex && pip install -v --disable-pip-version-check --
 
 COPY requirements.txt /workspace/requirements.txt
 RUN pip install -U pip && pip install -r /workspace/requirements.txt
+RUN pip install colorama
 
 ENV PATH=$VIRTUAL_ENV/bin:/workspace/external/deepspeed/bin:$PATH
 ENV PYTHONPATH=/workspace:/workspace/external/deepspeed
