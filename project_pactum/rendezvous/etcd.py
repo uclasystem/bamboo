@@ -203,6 +203,9 @@ class EtcdRendezvousHandler(RendezvousHandler):
     def get_global_decision(self):
         return self._rdzv_impl.get_global_decision()
 
+    def get_current_step(self):
+        return self._rdzv_impl.get_current_step()
+
     def next_rendezvous(self, previous_global_rank=-1):
         if isinstance(previous_global_rank, str):
             previous_global_rank = int(previous_global_rank)
@@ -822,6 +825,15 @@ class EtcdRendezvous(object):
 
         return json.loads(previous_state.value)
 
+    def get_current_step(self):
+        current_step_key = self.get_path('/rdzv/current_step')
+        try:
+            current_step = self.client.get(current_step_key)
+        except etcd.EtcdKeyNotFound:
+            return 0
+
+        return json.loads(current_step.value)
+
     def get_global_decision(self):
         _, state = self.get_rdzv_state()
         version = state["version"]
@@ -984,7 +996,7 @@ class EtcdRendezvous(object):
             rank_coordinates[rank] = coordinates
         return rank_coordinates
 
-    def decide_reconfigure(self, global_steps_key, active_version, state):
+    def decide_reconfigure(self, global_step, global_steps_key, active_version, state):
         should_reconfigure = False
 
         version = state["version"]
@@ -1016,6 +1028,9 @@ class EtcdRendezvous(object):
                 prevValue=active_version.value,
             )
 
+        current_step_key = self.get_path("/rdzv/current_step")
+        self.client.write(current_step_key, global_step)
+
         return should_reconfigure
 
     def should_reconfigure(self, global_steps):
@@ -1043,7 +1058,7 @@ class EtcdRendezvous(object):
 
             # Try to make the decision, if it fails just retry
             try:
-                return self.decide_reconfigure(global_steps_key, active_version, state)
+                return self.decide_reconfigure(global_steps, global_steps_key, active_version, state)
             except:
                 pass
 
