@@ -21,6 +21,9 @@ import traceback
 from contextlib import closing
 
 from torch.distributed.elastic import rendezvous
+from torch.serialization import default_restore_location
+
+from colorama import Fore
 
 import etcd  # type: ignore[import]
 from torch.distributed.elastic.rendezvous import (
@@ -193,9 +196,11 @@ class EtcdRendezvousHandler(RendezvousHandler):
     def __del__(self):
         # TODO: look into using weakref here instead.
         del self._rdzv_impl
-
     def get_backend(self) -> str:
         return "etcd"
+
+    def write(self, key, value):
+        self._rdzv_impl.write(key, value)
 
     def should_reconfigure(self, global_steps):
         return self._rdzv_impl.should_reconfigure(global_steps)
@@ -205,6 +210,7 @@ class EtcdRendezvousHandler(RendezvousHandler):
 
     def get_current_step(self):
         return self._rdzv_impl.get_current_step()
+
 
     def next_rendezvous(self, previous_global_rank=-1):
         if isinstance(previous_global_rank, str):
@@ -406,6 +412,12 @@ class EtcdRendezvous(object):
 
         if self._lease_this_rank_stop is not None:
             self._lease_this_rank_stop.set()
+
+    def write(self, key, value):
+        key = self.get_path(key)
+        if isinstance(value, str):
+            value = json.dumps(value)
+        self.client.write(key, value)
 
     def rendezvous_barrier(self, previous_global_rank):
         """
@@ -753,9 +765,22 @@ class EtcdRendezvous(object):
 
         # Use the active coordinates, right now they're unused
 
-        num_pipelines = 1
-        num_stages = num_participants
+        default_num_stages_result = self.client.get(self.get_path('/rdzv/default_pipelines'))
+        default_num_stages = json.loads(default_num_stages_result.value)
+        num_pipelines = num_participants // default_num_stages
+        print(Fore.RED + f'NUM PIPELINES = NUM PARTS // DEF NUM STAGES : {num_pipelines} = {num_participants} // {default_num_stages}' + Fore.WHITE)
+        num_assigned_so_far = num_pipelines * default_num_stages
+        print(Fore.RED + f'NUM ASF = NUM PIPE * DEF NUM STAGES : {num_assigned_so_far} = {num_pipelines} * {default_num_stages}' + Fore.WHITE)
+        num_left = num_participants - num_assigned_so_far
+        print(Fore.RED + f'NUM LEFT = NUM PARTS - NUM ASF: {num_left} = {num_participants} - {num_assigned_so_far}' + Fore.WHITE)
+        size_to_append_to_pipeline = num_left // num_pipelines
+        print(Fore.RED + f'SIZE TO APP = NUM LEFT // NUM PIPE : {size_to_append_to_pipeline} = {num_left} // {num_pipelines}' + Fore.WHITE)
+        num_stages = default_num_stages + size_to_append_to_pipeline
+        print(Fore.RED + f'NUM STAGES = DEF NUM STAGES + SIZE TO APP : {num_stages} = {default_num_stages} + {size_to_append_to_pipeline}' + Fore.WHITE)
         num_active_nodes = num_pipelines * num_stages
+        print(Fore.RED + f'NUM ACT NODES = NUM PIPE * NUM STAGES : {num_active_nodes} = {num_pipelines} * {num_stages}' + Fore.WHITE)
+
+        print(f'FINAL NUM STAGES: {num_stages}, FINAL NUM PIPELINES: {num_pipelines}')
 
         state["previous_version"] = previous_version
         state["num_pipelines"] = str(num_pipelines)

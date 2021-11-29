@@ -16,6 +16,7 @@ def parse(args):
 	                version='Project Pactum {}'.format(VERSION))
     parser.add_argument('--project-pactum', action='store_true')
     parser.add_argument('--max-pipe-parallel-size', type=int)
+    parser.add_argument('--default-num-stages', '-dps', type=int)
 
     parser.add_argument(
         "--nnodes",

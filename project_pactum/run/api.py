@@ -67,6 +67,7 @@ class ProjectPactumLaunchConfig:
     metrics_cfg: Dict[str, str] = field(default_factory=dict)
     project_pactum: bool = False
     max_pipe_parallel_size: int = 2
+    default_num_stages: int = 4
 
     def __post_init__(self):
         self.rdzv_configs["last_call_timeout"] = 5
@@ -207,6 +208,7 @@ def config_from_args(args) -> Tuple[ProjectPactumLaunchConfig, Union[Callable, s
         log_dir=args.log_dir,
         project_pactum=args.project_pactum,
         max_pipe_parallel_size=args.max_pipe_parallel_size,
+        default_num_stages=args.default_num_stages,
     )
 
     with_python = not args.no_python
@@ -274,6 +276,7 @@ def launch_agent(
         f"  log_dir                : {config.log_dir}\n"
         f"  metrics_cfg            : {config.metrics_cfg}\n"
         f"  max_pipe_parallel_size : {config.max_pipe_parallel_size}\n"
+        f"  default_pipeline_size  : {config.default_num_stages}\n"
     )
 
     assert config.nproc_per_node == 1
@@ -314,6 +317,8 @@ def launch_agent(
             cfg = metrics.MetricsConfig(config.metrics_cfg) if config.metrics_cfg else None
             metrics.initialize_metrics(cfg)
 
+            rdzv_handler.write('/rdzv/default_pipelines', config.default_num_stages)
+
             extra_env = {
                 'PROJECT_PACTUM_ENABLED': str(1),
                 'PROJECT_PACTUM_ENDPOINT': config.rdzv_endpoint,
@@ -322,6 +327,7 @@ def launch_agent(
                 'PROJECT_PACTUM_MAX_NODES': str(config.max_nodes),
                 'PROJECT_PACTUM_RDZV_CONFIGS': json.dumps(config.rdzv_configs),
                 'PROJECT_PACTUM_MAX_PIPE_PARALLEL_SIZE': str(config.max_pipe_parallel_size),
+                'PROJECT_PACTUM_DEFAULT_PIPELINE_SIZE': str(config.default_num_stages),
                 'NCCL_BLOCKING_WAIT': str(1),
             }
             agent = ProjectPactumAgent(
