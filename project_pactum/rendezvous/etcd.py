@@ -1098,7 +1098,14 @@ class EtcdRendezvous(object):
         2. rendezvous becomes invalid because at least one member failed to renew their
            leased keep_alive node. We detect this, and destroy the rendezvous.
         """
-        active_version, state = self.get_rdzv_state()
+        while True:
+            try:
+                active_version, state = self.get_rdzv_state()
+                print('SUCCESS 0')
+                break
+            except:
+                continue
+
         while True:
             if state["status"] != "final" or state["version"] != expected_version:
                 return
@@ -1157,7 +1164,14 @@ class EtcdRendezvous(object):
 
             if time.time() > self._rendezvous_deadline:
                 raise RendezvousTimeoutError()
-            active_version, state = self.get_rdzv_state()
+
+            while True:
+                try:
+                    active_version, state = self.get_rdzv_state()
+                    print('SUCCESS 1')
+                    break
+                except:
+                    continue
 
     def handle_join_last_call(self, expected_version, deadline):
         """
