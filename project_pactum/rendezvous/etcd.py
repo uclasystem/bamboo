@@ -1035,11 +1035,11 @@ class EtcdRendezvous(object):
             if len(coordinates) > 2:
                 should_reconfigure = True
             elif len(coordinates) == 2:
-                ## PROJECT_PACTUM HACK: Temporarily forcing this for testing
-                should_reconfigure = True
                 num_workers_overloaded += 1
 
         if num_workers_waiting > 0 and num_workers_waiting >= num_workers_overloaded:
+            should_reconfigure = True
+        elif num_workers_overloaded >= 1:
             should_reconfigure = True
 
         self.client.write(
