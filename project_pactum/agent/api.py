@@ -137,6 +137,16 @@ class ProjectPactumAgent(SimpleElasticAgent):
                 self._exit_barrier()
                 return run_result
             elif state in {WorkerState.UNHEALTHY, WorkerState.FAILED}:
+
+                # PROJECT-PACTUM: If any worker exited with the special code to
+                #                 put it on standby, just restart the workers so
+                #                 it does another rendezvous
+                failures = run_result.failures
+                for rank, failure in failures.items():
+                    if failure.exit_code == 125:
+                        self._restart_workers(self._worker_group)
+                        continue
+
                 if self._remaining_restarts > 0:
                     log.info(
                         f"[{role}] Worker group {state.name}. "
