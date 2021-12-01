@@ -220,6 +220,9 @@ class EtcdRendezvousHandler(RendezvousHandler):
 
         global_decision = self._rdzv_impl.get_global_decision()
 
+        # set the world size as the workers that are assigned coordinates
+        world_size = len([info for info in global_decision if len(info.active_coordinates) != 0])
+
         log.info("Creating EtcdStore as the c10d::Store implementation")
         store = self._rdzv_impl.setup_kv_store(rdzv_version)
 
@@ -1101,7 +1104,6 @@ class EtcdRendezvous(object):
         while True:
             try:
                 active_version, state = self.get_rdzv_state()
-                print('SUCCESS 0')
                 break
             except:
                 continue
@@ -1168,7 +1170,6 @@ class EtcdRendezvous(object):
             while True:
                 try:
                     active_version, state = self.get_rdzv_state()
-                    print('SUCCESS 1')
                     break
                 except:
                     continue

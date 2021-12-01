@@ -142,10 +142,14 @@ class ProjectPactumAgent(SimpleElasticAgent):
                 #                 put it on standby, just restart the workers so
                 #                 it does another rendezvous
                 failures = run_result.failures
+                exit_early = False
                 for rank, failure in failures.items():
-                    if failure.exit_code == 125:
+                    if failure.exitcode == 125:
                         self._restart_workers(self._worker_group)
-                        continue
+                        exit_early = True
+                        break
+                if exit_early:
+                    continue
 
                 if self._remaining_restarts > 0:
                     log.info(
