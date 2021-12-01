@@ -62,10 +62,22 @@ class ProjectPactumAgent(SimpleElasticAgent):
 
         spec = worker_group.spec
 
-        store, group_rank, group_world_size, num_pipelines, num_stages, global_decision = spec.rdzv_handler.next_rendezvous()
-        self._store = store
+        while True:
+            store, group_rank, group_world_size, num_pipelines, num_stages, global_decision = spec.rdzv_handler.next_rendezvous()
+            self._store = store
 
-        workers = self._assign_worker_ranks(store, group_rank, group_world_size, spec, num_pipelines, num_stages, global_decision)
+            # PROJECT-PACTUM: Lookup coordinates from global decision
+            coordinates = []
+            for info in global_decision:
+                if info.rank == group_rank:
+                    coordinates = info.active_coordinates
+
+            # PROJECT-PACTUM: If it doesn't have any coordinates then we
+            #                 shouldn't even start it, try again.
+            if len(coordinates) != 0:
+                break
+
+        workers = self._assign_worker_ranks(store, group_rank, group_world_size, spec, num_pipelines, num_stages, global_decision, coordinates)
         worker_group.workers = workers
         worker_group.store = store
         worker_group.group_rank = group_rank
@@ -156,7 +168,7 @@ class ProjectPactumAgent(SimpleElasticAgent):
 
     def _assign_worker_ranks(
         self, store, group_rank: int, group_world_size: int, spec: WorkerSpec,
-        num_pipelines, num_stages, global_decision
+        num_pipelines, num_stages, global_decision, coordinates
     ) -> List[ProjectPactumWorker]:
         """
         Determines proper ranks for worker processes. The rank assignment
@@ -200,18 +212,7 @@ class ProjectPactumAgent(SimpleElasticAgent):
 
         workers = []
 
-        # PROJECT-PACTUM: Lookup coordinates from global decision
-        coordinates = []
-        for info in global_decision:
-            if info.rank == group_rank:
-                coordinates = info.active_coordinates
-
         for ind in range(spec.local_world_size):
-            # PROJECT-PACTUM: This is the new worker, if it doesn't have any
-            #                 coordinates then we shouldn't even start it
-            if len(coordinates) == 0:
-                continue
-
             worker = ProjectPactumWorker(
                 local_rank=ind,
                 global_rank=worker_global_ranks[ind],
