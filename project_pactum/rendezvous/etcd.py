@@ -21,6 +21,9 @@ import traceback
 from contextlib import closing
 
 from torch.distributed.elastic import rendezvous
+from torch.serialization import default_restore_location
+
+from colorama import Fore
 
 import etcd  # type: ignore[import]
 from torch.distributed.elastic.rendezvous import (
@@ -193,15 +196,21 @@ class EtcdRendezvousHandler(RendezvousHandler):
     def __del__(self):
         # TODO: look into using weakref here instead.
         del self._rdzv_impl
-
     def get_backend(self) -> str:
         return "etcd"
+
+    def write(self, key, value):
+        self._rdzv_impl.write(key, value)
 
     def should_reconfigure(self, global_steps):
         return self._rdzv_impl.should_reconfigure(global_steps)
 
     def get_global_decision(self):
         return self._rdzv_impl.get_global_decision()
+
+    def get_current_step(self):
+        return self._rdzv_impl.get_current_step()
+
 
     def next_rendezvous(self, previous_global_rank=-1):
         if isinstance(previous_global_rank, str):
@@ -403,6 +412,12 @@ class EtcdRendezvous(object):
 
         if self._lease_this_rank_stop is not None:
             self._lease_this_rank_stop.set()
+
+    def write(self, key, value):
+        key = self.get_path(key)
+        if isinstance(value, str):
+            value = json.dumps(value)
+        self.client.write(key, value)
 
     def rendezvous_barrier(self, previous_global_rank):
         """
@@ -750,9 +765,22 @@ class EtcdRendezvous(object):
 
         # Use the active coordinates, right now they're unused
 
-        num_pipelines = 1
-        num_stages = num_participants
+        default_num_stages_result = self.client.get(self.get_path('/rdzv/default_pipelines'))
+        default_num_stages = json.loads(default_num_stages_result.value)
+        num_pipelines = num_participants // default_num_stages
+        print(Fore.RED + f'NUM PIPELINES = NUM PARTS // DEF NUM STAGES : {num_pipelines} = {num_participants} // {default_num_stages}' + Fore.WHITE)
+        num_assigned_so_far = num_pipelines * default_num_stages
+        print(Fore.RED + f'NUM ASF = NUM PIPE * DEF NUM STAGES : {num_assigned_so_far} = {num_pipelines} * {default_num_stages}' + Fore.WHITE)
+        num_left = num_participants - num_assigned_so_far
+        print(Fore.RED + f'NUM LEFT = NUM PARTS - NUM ASF: {num_left} = {num_participants} - {num_assigned_so_far}' + Fore.WHITE)
+        size_to_append_to_pipeline = num_left // num_pipelines
+        print(Fore.RED + f'SIZE TO APP = NUM LEFT // NUM PIPE : {size_to_append_to_pipeline} = {num_left} // {num_pipelines}' + Fore.WHITE)
+        num_stages = default_num_stages + size_to_append_to_pipeline
+        print(Fore.RED + f'NUM STAGES = DEF NUM STAGES + SIZE TO APP : {num_stages} = {default_num_stages} + {size_to_append_to_pipeline}' + Fore.WHITE)
         num_active_nodes = num_pipelines * num_stages
+        print(Fore.RED + f'NUM ACT NODES = NUM PIPE * NUM STAGES : {num_active_nodes} = {num_pipelines} * {num_stages}' + Fore.WHITE)
+
+        print(f'FINAL NUM STAGES: {num_stages}, FINAL NUM PIPELINES: {num_pipelines}')
 
         state["previous_version"] = previous_version
         state["num_pipelines"] = str(num_pipelines)
@@ -821,6 +849,15 @@ class EtcdRendezvous(object):
         previous_state = self.client.get(previous_state_key)
 
         return json.loads(previous_state.value)
+
+    def get_current_step(self):
+        current_step_key = self.get_path('/rdzv/current_step')
+        try:
+            current_step = self.client.get(current_step_key)
+        except etcd.EtcdKeyNotFound:
+            return 0
+
+        return json.loads(current_step.value)
 
     def get_global_decision(self):
         _, state = self.get_rdzv_state()
@@ -984,7 +1021,7 @@ class EtcdRendezvous(object):
             rank_coordinates[rank] = coordinates
         return rank_coordinates
 
-    def decide_reconfigure(self, global_steps_key, active_version, state):
+    def decide_reconfigure(self, global_step, global_steps_key, active_version, state):
         should_reconfigure = False
 
         version = state["version"]
@@ -998,11 +1035,11 @@ class EtcdRendezvous(object):
             if len(coordinates) > 2:
                 should_reconfigure = True
             elif len(coordinates) == 2:
-                ## PROJECT_PACTUM HACK: Temporarily forcing this for testing
-                should_reconfigure = True
                 num_workers_overloaded += 1
 
         if num_workers_waiting > 0 and num_workers_waiting >= num_workers_overloaded:
+            should_reconfigure = True
+        elif num_workers_overloaded >= 1:
             should_reconfigure = True
 
         self.client.write(
@@ -1015,6 +1052,9 @@ class EtcdRendezvous(object):
                 key=self.get_path("/rdzv/active_version"),
                 prevValue=active_version.value,
             )
+
+        current_step_key = self.get_path("/rdzv/current_step")
+        self.client.write(current_step_key, global_step)
 
         return should_reconfigure
 
@@ -1043,7 +1083,7 @@ class EtcdRendezvous(object):
 
             # Try to make the decision, if it fails just retry
             try:
-                return self.decide_reconfigure(global_steps_key, active_version, state)
+                return self.decide_reconfigure(global_steps, global_steps_key, active_version, state)
             except:
                 pass
 
@@ -1058,7 +1098,14 @@ class EtcdRendezvous(object):
         2. rendezvous becomes invalid because at least one member failed to renew their
            leased keep_alive node. We detect this, and destroy the rendezvous.
         """
-        active_version, state = self.get_rdzv_state()
+        while True:
+            try:
+                active_version, state = self.get_rdzv_state()
+                print('SUCCESS 0')
+                break
+            except:
+                continue
+
         while True:
             if state["status"] != "final" or state["version"] != expected_version:
                 return
@@ -1117,7 +1164,14 @@ class EtcdRendezvous(object):
 
             if time.time() > self._rendezvous_deadline:
                 raise RendezvousTimeoutError()
-            active_version, state = self.get_rdzv_state()
+
+            while True:
+                try:
+                    active_version, state = self.get_rdzv_state()
+                    print('SUCCESS 1')
+                    break
+                except:
+                    continue
 
     def handle_join_last_call(self, expected_version, deadline):
         """
