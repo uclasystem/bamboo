@@ -3,6 +3,7 @@
 import functools
 import os
 import json
+import signal
 import shutil
 import tempfile
 import time
@@ -45,6 +46,23 @@ class ProjectPactumAgent(SimpleElasticAgent):
         rdzv_run_id = spec.rdzv_handler.get_run_id()
         self._log_dir = self._make_log_dir(log_dir, rdzv_run_id)
         self._extra_env = extra_env
+
+        # Register the SIGTERM (15) signal to kill the workers
+        signal.signal(signal.SIGTERM, self.signal)
+
+    def signal(self, signum, frame):
+        role = worker_group.spec.role
+        worker_pids = {w.id for w in worker_group.workers}
+        assert self._pcontext is not None
+        pc_pids = set(self._pcontext.pids().values())
+        if worker_pids != pc_pids:
+            log.error(
+                f"[{role}] worker pids do not match process_context pids."
+                f" Expected: {worker_pids}, actual: {pc_pids}"
+            )
+        # Kill the workers
+        for pid in pc_pids:
+            os.kill(pid, 15)
 
     def _make_log_dir(self, log_dir: Optional[str], rdzv_run_id: str):
         base_log_dir = log_dir or tempfile.mkdtemp(prefix="torchelastic_")
