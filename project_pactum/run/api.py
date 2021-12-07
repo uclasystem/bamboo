@@ -379,5 +379,5 @@ def launch_agent(
         else:
             events.record(_construct_event(config))
         raise
-    finally:
-        rdzv_handler.shutdown()
+#    finally:
+#        rdzv_handler.shutdown()
