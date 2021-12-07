@@ -5,6 +5,7 @@ import os
 import json
 import signal
 import shutil
+import sys
 import tempfile
 import time
 
@@ -51,8 +52,8 @@ class ProjectPactumAgent(SimpleElasticAgent):
         signal.signal(signal.SIGTERM, self.signal)
 
     def signal(self, signum, frame):
-        role = worker_group.spec.role
-        worker_pids = {w.id for w in worker_group.workers}
+        role = self._worker_group.spec.role
+        worker_pids = {w.id for w in self._worker_group.workers}
         assert self._pcontext is not None
         pc_pids = set(self._pcontext.pids().values())
         if worker_pids != pc_pids:
@@ -63,6 +64,10 @@ class ProjectPactumAgent(SimpleElasticAgent):
         # Kill the workers
         for pid in pc_pids:
             os.kill(pid, 15)
+
+        from colorama import Fore
+        print(Fore.RED + "ABOUT TO DIE!!!" + Fore.RESET)
+        os.kill(os.getpid(), 9)
 
     def _make_log_dir(self, log_dir: Optional[str], rdzv_run_id: str):
         base_log_dir = log_dir or tempfile.mkdtemp(prefix="torchelastic_")
