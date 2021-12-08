@@ -73,6 +73,8 @@ def setup_logging():
 
 	logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 
+	logging.getLogger('matplotlib').setLevel(logging.WARNING)
+
 def setup_settings():
 	from project_pactum.core.settings import Settings
 	settings = Settings()
