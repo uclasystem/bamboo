@@ -908,10 +908,16 @@ class EtcdRendezvous(object):
                     "Rendezvous version changed. Must try join the new one."
                 )
 
+            this_ip_key = self.get_path(
+                "/rdzv/v_{}/rank_{}_ip".format(expected_version, this_rank)
+            )
+
             this_lease_key = self.get_path(
                 "/rdzv/v_{}/rank_{}".format(expected_version, this_rank)
             )
             self.client.set(this_lease_key, value=str(previous_global_rank), ttl=CONST_WORKER_KEEPALIVE_TTL)
+            my_ip = socket.gethostbyname( socket.gethostname() )
+            self.client.set(this_ip_key, value=str(my_ip), ttl=None)
 
             state["keep_alives"].append(this_lease_key)
             if len(state["keep_alives"]) == len(state["participants"]):
@@ -1036,7 +1042,7 @@ class EtcdRendezvous(object):
             elif len(coordinates) == 2:
                 num_workers_overloaded += 1
 
-        if num_workers_waiting > 0 and num_workers_waiting >= num_workers_overloaded:
+        if num_workers_overloaded > 0 and num_workers_waiting >= num_workers_overloaded:
             should_reconfigure = True
         elif num_workers_overloaded >= 1:
             should_reconfigure = True
