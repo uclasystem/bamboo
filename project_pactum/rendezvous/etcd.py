@@ -1044,8 +1044,24 @@ class EtcdRendezvous(object):
 
         if num_workers_overloaded > 0 and num_workers_waiting >= num_workers_overloaded:
             should_reconfigure = True
-        elif num_workers_overloaded >= 1:
-            should_reconfigure = True
+
+        try:
+            num_pipelines = int(state['num_pipelines'])
+            num_stages = int(state['num_pipelines'])
+            num_og_workers = num_pipelines * num_stages
+            num_active_workers = num_og_workers - num_workers_overloaded
+
+            # If we're above a 5% chance of failure, re-configure/re-balance
+            # I cannot remove an overloaded node, or the node that now has no
+            # redundancy
+            if num_workers_overloaded > 0 and (2 * num_workers_overloaded / num_active_workers) > 0.05:
+                should_reconfigure = True
+
+            potential_num_pipelines = (num_active_workers + num_workers_waiting) // num_stages
+            if potential_num_pipelines > num_pipelines:
+                should_reconfigure = True
+        except Exception as e:
+            print(f'GOT ERROR {str(e)}')
 
         self.client.write(
             global_steps_key, value=json.dumps(should_reconfigure), prevExist=False
