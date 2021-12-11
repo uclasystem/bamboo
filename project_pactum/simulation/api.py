@@ -20,7 +20,9 @@ def parse(args):
     parser.add_argument('--generate-table', action='store_true')
     return parser.parse_args(args)
 
-def simulate(removal_probability, seed):
+
+def simulate(args):
+    removal_probability, seed = args
     simulator = Simulator(
         seed=seed,
         start_hour=0,
@@ -32,6 +34,8 @@ def simulate(removal_probability, seed):
 
 def generate_table():
     logging.getLogger('project_pactum.simulation.simulator').setLevel(logging.WARNING)
+
+    count = 0
 
     removal_probabilities = [0.01, 0.05, 0.10, 0.25, 0.50]
     all_preemptions = {}
@@ -54,7 +58,7 @@ def generate_table():
             for seed in range(1, 10_001):
                 simulations.append((removal_probability, seed))
 
-        for result in pool.starmap(simulate, simulations):
+        for result in pool.imap_unordered(simulate, simulations):
             removal_probability = result.removal_probability
             all_preemptions[removal_probability].append(result.num_preemptions)
             all_fatal_failures[removal_probability].append(result.num_fatal_failures)
@@ -62,6 +66,10 @@ def generate_table():
             all_performance[removal_probability].append(result.average_performance)
             all_cost[removal_probability].append(result.average_cost)
             all_value[removal_probability].append(result.average_value)
+
+            count += 1
+            if count % 100 == 0:
+                logger.info(f'{count} simulations complete')
 
     print('Probability', 'Preemptions', 'Fatal Failures', 'Instances', 'Performance', '     Cost', '    Value',
           sep=' & ', end=' \\\\\n')
