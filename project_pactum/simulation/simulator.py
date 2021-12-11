@@ -770,7 +770,7 @@ class Simulator:
             ax.spines['right'].set_visible(False)
             ax.spines['top'].set_visible(False)
 
-            plt.axis([0, duration_hours, 0, 64])
+            plt.axis([0, duration_hours, 0, self.spot_instance_desired_capacity])
 
             pdf_suffix = f'-seed-{self.seed}-start-hour-{self.start_hour}-generate-addition-probabilities-{self.generate_addition_probabilities}-removal-probability-{self.removal_probability}.pdf'
 
