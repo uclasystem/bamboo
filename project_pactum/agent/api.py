@@ -9,6 +9,8 @@ import sys
 import tempfile
 import time
 
+from colorama import Fore
+
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -284,6 +286,10 @@ class ProjectPactumAgent(SimpleElasticAgent):
                 for local_rank, failure in result.failures.items():
                     worker = worker_group.workers[local_rank]
                     worker_failures[worker.global_rank] = failure
+                    print(Fore.RED, f'FAILURES!!!! {failure.message}', Fore.RESET)
+
+                print(Fore.RED, f'WORKER FAILURES {worker_failures}', Fore.RESET)
+
                 return RunResult(
                     state=WorkerState.FAILED,
                     failures=worker_failures,

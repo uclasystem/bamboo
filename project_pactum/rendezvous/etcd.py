@@ -19,6 +19,7 @@ from typing import Optional
 import re
 import traceback
 from contextlib import closing
+from colorama.ansi import Fore
 
 from torch.distributed.elastic import rendezvous
 from torch.serialization import default_restore_location
@@ -50,6 +51,10 @@ GlobalInfo = collections.namedtuple(
     'GlobalInfo',
     ['rank', 'previous_coordinates', 'active_coordinates']
 )
+
+class TooFewNodesException(Exception):
+    def __init__(self):
+        pass
 
 # Retryable failure exception means the we were too late to make
 # a desired state transition (e.g. because of a race condition),
@@ -770,12 +775,11 @@ class EtcdRendezvous(object):
 
         default_num_stages_result = self.client.get(self.get_path('/rdzv/default_pipelines'))
         default_num_stages = json.loads(default_num_stages_result.value)
+        num_stages = default_num_stages
         num_pipelines = num_participants // default_num_stages
-        num_assigned_so_far = num_pipelines * default_num_stages
-        num_left = num_participants - num_assigned_so_far
-        size_to_append_to_pipeline = num_left // num_pipelines
-        num_stages = default_num_stages + size_to_append_to_pipeline
         num_active_nodes = num_pipelines * num_stages
+        if num_participants < default_num_stages:
+            raise TooFewNodesException()
 
         state["previous_version"] = previous_version
         state["num_pipelines"] = str(num_pipelines)
@@ -1047,7 +1051,7 @@ class EtcdRendezvous(object):
 
         try:
             num_pipelines = int(state['num_pipelines'])
-            num_stages = int(state['num_pipelines'])
+            num_stages = int(state['num_stages'])
             num_og_workers = num_pipelines * num_stages
             num_active_workers = num_og_workers - num_workers_overloaded
 
@@ -1057,11 +1061,14 @@ class EtcdRendezvous(object):
             if num_workers_overloaded > 0 and (2 * num_workers_overloaded / num_active_workers) > 0.05:
                 should_reconfigure = True
 
-            potential_num_pipelines = (num_active_workers + num_workers_waiting) // num_stages
+            potential_num_pipelines = (num_active_workers + num_workers_waiting - num_workers_overloaded) // num_stages
             if potential_num_pipelines > num_pipelines:
+                print(Fore.LIGHTYELLOW_EX, f'NUM ACT WORKER {num_active_workers}, NUM WAIT {num_workers_waiting}, NUM OVLD {num_workers_overloaded}, num STAGES {num_stages}')
+                print(Fore.LIGHTYELLOW_EX, f'CURRENT PIPELINES = {num_pipelines} but POTENTIAL PIPELINES = {potential_num_pipelines}', Fore.RESET)
+                print(Fore.RED, 'SETTING IT TO TRUE BECAUSE WE HAVE NEW PIPELINES', Fore.RESET)
                 should_reconfigure = True
         except Exception as e:
-            print(f'GOT ERROR {str(e)}')
+            print(Fore.RED, f'GOT ERROR {str(e)}', Fore.RESET)
 
         self.client.write(
             global_steps_key, value=json.dumps(should_reconfigure), prevExist=False
