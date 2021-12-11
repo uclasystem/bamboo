@@ -11,12 +11,13 @@ import typing
 logger = logging.getLogger(__name__)
 
 class EventKind(enum.IntEnum):
-    SPOT_INSTANCE_ADD = 1
-    SPOT_INSTANCE_REMOVE = 2
-    SPOT_INSTANCE_READY = 3
-    GLOBAL_RENDEZVOUS_TIMEOUT = 4
-    LOCAL_RENDEZVOUS_TIMEOUT = 5
-    TRAINING_STEP_COMPLETE = 6
+    SPOT_INSTANCE_GENERATE = 1
+    SPOT_INSTANCE_ADD = 2
+    SPOT_INSTANCE_REMOVE = 3
+    SPOT_INSTANCE_READY = 4
+    GLOBAL_RENDEZVOUS_TIMEOUT = 5
+    LOCAL_RENDEZVOUS_TIMEOUT = 6
+    TRAINING_STEP_COMPLETE = 7
 
 @dataclasses.dataclass(order=True)
 class Event:
@@ -33,6 +34,22 @@ class NodeStatus(enum.Enum):
     CREATING = enum.auto()
     READY = enum.auto()
     RUNNING = enum.auto()
+
+@dataclasses.dataclass
+class Result:
+    preemption_mean: float
+    preemption_median: float
+    preemption_stdev: float
+    lifetime_mean: float
+    lifetime_median: float
+    lifetime_stdev: float
+    num_preemptions: int
+    num_fatal_failures: int
+    num_steps_complete: int
+    average_instances: float
+    average_performance: float
+    average_cost: float
+    average_value: float
 
 class SpotInstance:
     def __init__(self, name, start):
@@ -66,79 +83,97 @@ class SpotInstance:
 
 class Simulator:
 
-    def __init__(self, options):
+    def __init__(self, options,
+                 base_addition_probability=None,
+                 base_removal_probability=None):
         self.generate_graphs = options.generate_graphs
 
-        if options.seed is not None:
-            seed = options.seed
-            self.r = random.Random(seed)
-            logger.info(f'Using seed: {seed}')
+        self.seed = options.seed
+        if self.seed is not None:
+            self.r = random.Random(self.seed)
+            logger.info(f'Using seed: {self.seed}')
         else:
             self.r = random.Random()
 
+        self.hour = datetime.timedelta(hours=1)
+        self.second = datetime.timedelta(seconds=1)
         self.millisecond = datetime.timedelta(milliseconds=1)
+        self.milliseconds_per_second = self.second / self.millisecond
+        self.milliseconds_per_hour = self.hour / self.millisecond
 
         self.spot_instance_name_format = 'node{id}'
         self.spot_instance_next_id = 1
         self.spot_instance_desired_capacity = 64
-        self.spot_instance_addition_probability = {
-            0: 0.05,
-            1: 0.05,
-            2: 0.05,
-            3: 0.50,
-            4: 0.50,
-            5: 0.50,
-            6: 0.05,
-            7: 0.05,
-            8: 0.05,
-            9: 0.05,
-            10: 0.05,
-            11: 0.05,
-            12: 0.05,
-            13: 0.05,
-            14: 0.05,
-            15: 0.00,
-            16: 0.00,
-            17: 0.00,
-            18: 0.00,
-            19: 0.00,
-            20: 0.00,
-            21: 0.00,
-            22: 0.00,
-            23: 0.05,
-        }
-        self.spot_instance_removal_probability = {
-            0: 0.05,
-            1: 0.05,
-            2: 0.05,
-            3: 0.01,
-            4: 0.01,
-            5: 0.01,
-            6: 0.05,
-            7: 0.05,
-            8: 0.05,
-            9: 0.05,
-            10: 0.05,
-            11: 0.05,
-            12: 0.05,
-            13: 0.05,
-            14: 0.05,
-            15: 0.25,
-            16: 0.25,
-            17: 0.25,
-            18: 0.25,
-            19: 0.25,
-            20: 0.25,
-            21: 0.25,
-            22: 0.25,
-            23: 0.05,
-        }
+        if base_addition_probability is None:
+            self.spot_instance_addition_probability = {
+                0: 0.05,
+                1: 0.05,
+                2: 0.05,
+                3: 0.50,
+                4: 0.50,
+                5: 0.50,
+                6: 0.05,
+                7: 0.05,
+                8: 0.05,
+                9: 0.05,
+                10: 0.05,
+                11: 0.05,
+                12: 0.05,
+                13: 0.05,
+                14: 0.05,
+                15: 0.00,
+                16: 0.00,
+                17: 0.00,
+                18: 0.00,
+                19: 0.00,
+                20: 0.00,
+                21: 0.00,
+                22: 0.00,
+                23: 0.05,
+            }
+        else:
+            self.spot_instance_addition_probability = self.generate_from_base_probability(base_addition_probability)
+        if base_removal_probability is None:
+            self.spot_instance_removal_probability = {
+                0: 0.05,
+                1: 0.05,
+                2: 0.05,
+                3: 0.01,
+                4: 0.01,
+                5: 0.01,
+                6: 0.05,
+                7: 0.05,
+                8: 0.05,
+                9: 0.05,
+                10: 0.05,
+                11: 0.05,
+                12: 0.05,
+                13: 0.05,
+                14: 0.05,
+                15: 0.25,
+                16: 0.25,
+                17: 0.25,
+                18: 0.25,
+                19: 0.25,
+                20: 0.25,
+                21: 0.25,
+                22: 0.25,
+                23: 0.05,
+            }
+        else:
+            self.spot_instance_removal_probability = self.generate_from_base_probability(base_removal_probability)
         self.start_hour = options.start_hour
         self.spot_instance_creation_time = 45_000 # milliseconds
         self.global_rendezvous_timeout_delta = 30_000 # milliseconds
         self.local_rendezvous_timeout_delta = 1_000 # milliseconds
+        self.time_for_single_pipeline = 10_000 # milliseconds
 
+        self.equal_performance_factor = 1.5
         self.num_stages_minimum = 6
+        self.on_demand_num_stages = self.num_stages_minimum / self.equal_performance_factor
+        assert self.on_demand_num_stages % 1.0 == 0.0
+        self.on_demand_num_stages = int(self.on_demand_num_stages)
+        self.on_demand_price_factor = 0.3
 
         self.spot_instances = {}
         self.rendezvous_version = 0
@@ -154,14 +189,45 @@ class Simulator:
         self.spot_instance_removal_times = []
         self.spot_instance_lifetimes = []
 
+        self.previous_step_complete_delta = 0
+        self.tokens_per_iteration = 16_384
+        self.iterations_per_job = 183_106
+
+        self.performance_xs = []
+        self.performance_ys = []
+
+        self.cost_dollars_per_hour_per_instance = 0.90
+        self.cost_xs = []
+        self.cost_ys = []
+
+        self.value_xs = []
+        self.value_ys = []
+
         self.events = []
         heapq.heapify(self.events)
 
         self.status = SystemStatus.STOPPED
 
+    def generate_from_base_probability(self, base_probability):
+        probability = {
+            0: base_probability,
+        }
+        for hour in range(1, 24):
+            p = probability[hour - 1] + self.r.uniform(-0.1, 0.1)
+            if p > 1.0:
+                p = 1.0
+            elif p < 0.0:
+                p = 0.0
+            probability[hour] = p
+        return probability
+
     def simulate_step_delta(self):
         # TODO: I need help with this, it shouldn't be constant
-        self.step_delta = 30_000 # milliseconds
+        self.step_delta = self.time_for_single_pipeline / self.num_pipelines
+
+        num_workers_overloaded = self.get_num_workers_overloaded()
+        if num_workers_overloaded > 1:
+            self.step_delta *= 1.5
 
     def info(self, delta, message):
         logger.info(f'[{delta/1000.0:.3f}] {message}')
@@ -309,12 +375,33 @@ class Simulator:
 
                     # Check if we also attempt to remove this new instance in
                     # this hour
-                    delta = self.generate_spot_instance_removal_delta(current_time, current_delta)
+                    delta = self.generate_spot_instance_removal_delta(
+                        current_time,
+                        current_delta
+                    )
                     if delta is None or delta < current_instances[name]:
                         continue
                     heapq.heappush(removed_instances, (delta, name))
 
             current_delta += datetime.timedelta(hours=1)
+
+    def append_cost(self, delta):
+        self.cost_xs.append(delta / self.milliseconds_per_hour)
+        self.cost_ys.append(
+            self.cost_dollars_per_hour_per_instance * len(self.spot_instances)
+        )
+        self.append_value(delta)
+
+    def append_value(self, delta):
+        if len(self.performance_ys) == 0 or len(self.cost_ys) == 0:
+            return
+        if self.cost_ys[-1] == 0.0:
+            return
+
+        self.value_xs.append(delta / self.milliseconds_per_hour)
+        self.value_ys.append(
+            self.performance_ys[-1] / self.cost_ys[-1]
+        )
 
     def simulate_spot_instance_add(self, delta, data):
         name = data['name']
@@ -323,6 +410,8 @@ class Simulator:
             delta + self.spot_instance_creation_time,
             name,
         )
+
+        self.append_cost(delta)
 
     def simulate_fatal_failure(self, delta, name):
         self.info(
@@ -340,6 +429,8 @@ class Simulator:
         self.spot_instance_lifetimes.append(delta - instance.start)
         self.spot_instance_removal_times.append(delta)
         del self.spot_instances[name]
+
+        self.append_cost(delta)
 
         if instance.is_running():
             # This is a fatal failure
@@ -366,6 +457,10 @@ class Simulator:
                         break
                 if found:
                     break
+        
+        # Re-simulate the step delta now that we lost a node
+        if self.status == SystemStatus.RUNNING:
+            self.simulate_step_delta()
 
     def simulate_rendezvous_start(self, delta, is_global):
         self.status = SystemStatus.RENDEZVOUS
@@ -472,16 +567,19 @@ class Simulator:
         self.num_stages = num_stages
         self.num_workers_waiting = num_workers_waiting
 
-    def simulate_should_reconfigure(self):
+    def get_num_workers_overloaded(self):
         num_workers_overloaded = 0
-        num_workers_waiting = self.num_workers_waiting
-
         for name, instance in self.spot_instances.items():
             if not instance.is_running():
                 continue
             elif len(instance.active_coordinates) > 1:
                 assert len(instance.active_coordinates) == 2
                 num_workers_overloaded += 1
+        return num_workers_overloaded
+
+    def simulate_should_reconfigure(self):
+        num_workers_overloaded = self.get_num_workers_overloaded()
+        num_workers_waiting = self.num_workers_waiting
 
         # If we can easily re-balance, do it
         if num_workers_overloaded > 0 and num_workers_waiting >= num_workers_overloaded:
@@ -509,6 +607,13 @@ class Simulator:
             return
 
         self.num_steps_complete += 1
+        # Calculate performance
+        time_to_step_complete = delta - self.previous_step_complete_delta
+        tokens_per_second = self.tokens_per_iteration / (time_to_step_complete / self.milliseconds_per_second)
+        self.performance_xs.append(delta / self.milliseconds_per_hour)
+        self.performance_ys.append(tokens_per_second)
+        self.previous_step_complete_delta = delta
+
         if self.num_steps_complete % 100 == 0:
             self.info(delta, f'{self.num_steps_complete} steps complete')
         if self.simulate_should_reconfigure():
@@ -523,6 +628,17 @@ class Simulator:
                 self.rendezvous_version
             )
 
+    def calculate_average(self, xs, ys, duration):
+        previous_x = 0.0
+        previous_y = 0.0
+        total = 0.0
+        for x, y in zip(xs, ys):
+            total += (x - previous_x) * previous_y
+            previous_x = x
+            previous_y = y
+        total += (duration - previous_x) * previous_y
+        return total / duration
+        
     def simulate(self):
         start = datetime.datetime.now(datetime.timezone.utc)
         start = start.replace(minute=0, second=0, microsecond=0)
@@ -537,8 +653,8 @@ class Simulator:
         logger.info(f'Generating spot instance events...')
         self.generate_spot_instance_events(start, duration)
 
-        xs = []
-        ys = []
+        instances_xs = []
+        instances_ys = []
         while len(self.events) > 0:
             event = heapq.heappop(self.events)
 
@@ -576,8 +692,8 @@ class Simulator:
             #        print(type(instance))
             #    status = SystemStatus.RENDEZVOUS
             # print(self.status)
-            xs.append(delta)
-            ys.append(len(self.spot_instances))
+            instances_xs.append(delta/self.milliseconds_per_hour)
+            instances_ys.append(len(self.spot_instances))
 
         # Complete the remaining
     
@@ -595,46 +711,26 @@ class Simulator:
             )
             previous_removal_time = removal_time
 
-        print('Spot instance lifetimes')
-        print(
-            '  - Mean:',
-            statistics.mean(self.spot_instance_lifetimes)/1000.0/60.0/60.0,
-            'hours'
+        result = Result(
+            preemption_mean = statistics.mean(spot_instance_between_removal_times) / self.milliseconds_per_hour,
+            preemption_median = statistics.mean(spot_instance_between_removal_times) / self.milliseconds_per_hour,
+            preemption_stdev = statistics.stdev(spot_instance_between_removal_times) / self.milliseconds_per_hour,
+            lifetime_mean = statistics.mean(self.spot_instance_lifetimes) / self.milliseconds_per_hour,
+            lifetime_median = statistics.median(self.spot_instance_lifetimes) / self.milliseconds_per_hour,
+            lifetime_stdev = statistics.stdev(self.spot_instance_lifetimes) / self.milliseconds_per_hour,
+            num_preemptions = self.num_spot_instance_removals,
+            num_fatal_failures = self.num_fatal_failures,
+            num_steps_complete = self.num_steps_complete,
+            average_instances = self.calculate_average(instances_xs, instances_ys, duration/self.hour),
+            average_performance = self.calculate_average(self.performance_xs, self.performance_ys, duration/self.hour),
+            average_cost = self.calculate_average(self.cost_xs, self.cost_ys, duration/self.hour),
+            average_value = self.calculate_average(self.value_xs, self.value_ys, duration/self.hour),
         )
-        print(
-            '  - Median:',
-            statistics.median(self.spot_instance_lifetimes)/1000.0/60.0/60.0,
-            'hours')
-        print(
-            '  - Stdev:',
-            statistics.stdev(self.spot_instance_lifetimes)/1000.0/60.0/60.0,
-            'hours'
-        )
-        print('Spot instance between removal times')
-        print(
-            '  - Mean:',
-            statistics.mean(spot_instance_between_removal_times)
-            /1000.0/60.0/60.0,
-            'hours'
-        )
-        print(
-            '  - Median:',
-            statistics.median(spot_instance_between_removal_times)
-            /1000.0/60.0/60.0,
-            'hours'
-        )
-        print(
-            '  - Stdev:',
-            statistics.stdev(spot_instance_between_removal_times)
-            /1000.0/60.0/60.0,
-            'hours'
-        )
-        print('Number of spot instance removals:', self.num_spot_instance_removals)
-        print('Number of fatal failures:', self.num_fatal_failures)
-        print('Number of steps complete:', self.num_steps_complete)
 
         if self.generate_graphs:
+        # while True:
             import matplotlib.pyplot as plt
+            from matplotlib.ticker import StrMethodFormatter
             # sizes: xx-small, x-small, small, medium, large, x-large, xx-large
             params = {
                 'font.family': 'Inter',
@@ -645,10 +741,111 @@ class Simulator:
                 'ytick.labelsize': 'medium',
             }
             plt.rcParams.update(params)
-            plt.plot(xs, ys)
-            plt.xlabel('Time')
+
+            plt.plot(instances_xs, instances_ys)
+            plt.xlabel('Time (hours)')
             plt.ylabel('# Instances')
-            plt.axis([0, duration//self.millisecond, 0, 64])
+            plt.xticks(range(0, duration//self.hour + 1, 12))
+            plt.hlines(result.average_instances, 0, duration//self.hour, color='tab:blue', linestyles='dashed')
+            
+            ax = plt.gca()
+            ax.spines['right'].set_visible(False)
+            ax.spines['top'].set_visible(False)
+
+            plt.axis([0, duration//self.hour, 0, 64])
+
+            plt.savefig(
+                f'instances-seed-{self.seed}-start-hour-{self.start_hour}.pdf',
+                bbox_inches='tight',
+                pad_inches=0
+            )
             plt.show()
 
+            plt.clf()
+
+            # Calculate on demand performance
+            on_demand_num_pipelines = self.spot_instance_desired_capacity // self.num_stages_minimum
+            on_demand_num_instances = on_demand_num_pipelines * self.on_demand_num_stages
+            on_demand_time_to_step_complete = self.time_for_single_pipeline / on_demand_num_pipelines
+            on_demand_tokens_per_second = self.tokens_per_iteration / (on_demand_time_to_step_complete / self.milliseconds_per_second)
+            plt.hlines(on_demand_tokens_per_second, 0, duration//self.hour, color='red')
+
+            plt.hlines(result.average_performance, 0, duration//self.hour, color='tab:blue', linestyles='dashed')
+            plt.plot(self.performance_xs, self.performance_ys)
+            plt.xlim(0, duration//self.hour)
+            plt.ylim(0)
+            plt.xlabel('Time (hours)')
+            plt.ylabel('Performance (tokens per second)')
+            plt.xticks(range(0, duration//self.hour + 1, 12))
+            ax = plt.gca()
+            ax.spines['right'].set_visible(False)
+            ax.spines['top'].set_visible(False)
+
+            plt.savefig(
+                f'performance-seed-{self.seed}-start-hour-{self.start_hour}.pdf',
+                bbox_inches='tight',
+                pad_inches=0
+            )
+            plt.show()
+
+            plt.clf()
+
+            on_demand_cost_per_hour = self.cost_dollars_per_hour_per_instance / self.on_demand_price_factor * on_demand_num_instances
+            plt.hlines(result.average_cost, 0, duration//self.hour, color='tab:blue', linestyles='dashed')
+            plt.hlines(on_demand_cost_per_hour, 0, duration//self.hour, color='red')
+
+            plt.plot(self.cost_xs, self.cost_ys)
+            plt.xlim(0, duration//self.hour)
+            plt.ylim(0)
+            plt.xlabel('Time (hours)')
+            plt.ylabel('Cost ($ per hour)')
+            plt.xticks(range(0, duration//self.hour + 1, 12))
+            ax = plt.gca()
+            ax.spines['right'].set_visible(False)
+            ax.spines['top'].set_visible(False)
+
+            plt.savefig(
+                f'cost-seed-{self.seed}-start-hour-{self.start_hour}.pdf',
+                bbox_inches='tight',
+                pad_inches=0
+            )
+            plt.show()
+
+            plt.hlines(
+                on_demand_tokens_per_second / on_demand_cost_per_hour,
+                0, duration//self.hour, color='red'
+            )
+            plt.hlines(result.average_value, 0, duration//self.hour, color='tab:blue', linestyles='dashed')
+            plt.plot(self.value_xs, self.value_ys)
+            plt.xlim(0, duration//self.hour)
+            plt.ylim(0)
+            plt.xlabel('Time (hours)')
+            plt.ylabel('Value (performance per cost)')
+            plt.xticks(range(0, duration//self.hour + 1, 12))
+            ax = plt.gca()
+            ax.spines['right'].set_visible(False)
+            ax.spines['top'].set_visible(False)
+            
+            plt.savefig(
+                f'value-seed-{self.seed}-start-hour-{self.start_hour}.pdf',
+                bbox_inches='tight',
+                pad_inches=0
+            )
+            plt.show()
+
+
+        # print('Preemptions')
+        # print('  - Mean:', result.preemption_mean, 'hours')
+        # print('  - Median:', result.preemption_median, 'hours')
+        # print('  - Stdev:', result.preemption_stdev, 'hours')
+        # print('Lifetimes')
+        # print('  - Mean:', result.lifetime_mean, 'hours')
+        # print('  - Median:', result.lifetime_median, 'hours')
+        # print('  - Stdev:', result.lifetime_stdev, 'hours')
+        # print('Number of preemptions:', result.num_preemptions)
+        # print('Number of fatal failures:', result.num_fatal_failures)
+        # print('Number of steps complete:', result.num_steps_complete)
+
         logger.info(f'Ending at {end}')
+
+        return result
