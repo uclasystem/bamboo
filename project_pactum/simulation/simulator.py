@@ -109,7 +109,7 @@ class Simulator:
 
         self.spot_instance_name_format = 'node{id}'
         self.spot_instance_next_id = 1
-        self.spot_instance_desired_capacity = 64
+        self.spot_instance_desired_capacity = 60
         if not generate_addition_probabilities:
             self.spot_instance_addition_probability = {
                 0: 0.05,
@@ -745,114 +745,72 @@ class Simulator:
         )
 
         if self.generate_graphs:
-        # while True:
-            import matplotlib.pyplot as plt
-            from matplotlib.ticker import StrMethodFormatter
-            # sizes: xx-small, x-small, small, medium, large, x-large, xx-large
-            params = {
-                'font.family': 'Inter',
-                'legend.fontsize': 'medium',
-                'axes.labelsize': 'medium',
-                'axes.titlesize': 'medium',
-                'xtick.labelsize': 'medium',
-                'ytick.labelsize': 'medium',
-            }
-            plt.rcParams.update(params)
-
-            plt.plot(instances_xs, instances_ys)
-            plt.xlim(0, duration_hours)
-            plt.xlabel('Time (hours)')
-            plt.ylabel('# Instances')
-            plt.xticks(range(0, duration_hours + 1, 12))
-            plt.hlines(result.average_instances, 0, duration_hours, color='tab:blue', linestyles='dashed')
-            
-            ax = plt.gca()
-            ax.spines['right'].set_visible(False)
-            ax.spines['top'].set_visible(False)
-
-            plt.axis([0, duration_hours, 0, self.spot_instance_desired_capacity])
-
+            from .api import graph
             pdf_suffix = f'-seed-{self.seed}-start-hour-{self.start_hour}-generate-addition-probabilities-{self.generate_addition_probabilities}-removal-probability-{self.removal_probability}.pdf'
 
-            plt.savefig(
-                f'instances{pdf_suffix}',
-                bbox_inches='tight',
-                pad_inches=0
-            )
-            plt.show()
-
-            plt.clf()
-
-            # Calculate on demand performance
+            # Calculation on-demand statistics
             on_demand_num_pipelines = self.spot_instance_desired_capacity // self.num_stages_minimum
             on_demand_num_instances = on_demand_num_pipelines * self.on_demand_num_stages
             on_demand_time_to_step_complete = self.time_for_single_pipeline / on_demand_num_pipelines
             on_demand_tokens_per_second = self.tokens_per_iteration / (on_demand_time_to_step_complete / self.milliseconds_per_second)
-            plt.hlines(on_demand_tokens_per_second, 0, duration_hours, color='red')
-
-            plt.hlines(result.average_performance, 0, duration_hours, color='tab:blue', linestyles='dashed')
-            plt.plot(self.performance_xs, self.performance_ys)
-            plt.xlim(0, duration_hours)
-            plt.ylim(0)
-            plt.xlabel('Time (hours)')
-            plt.ylabel('Performance (tokens per second)')
-            plt.xticks(range(0, duration_hours + 1, 12))
-            ax = plt.gca()
-            ax.spines['right'].set_visible(False)
-            ax.spines['top'].set_visible(False)
-
-            plt.savefig(
-                f'performance{pdf_suffix}',
-                bbox_inches='tight',
-                pad_inches=0
-            )
-            plt.show()
-
-            plt.clf()
-
             on_demand_cost_per_hour = self.cost_dollars_per_hour_per_instance / self.on_demand_price_factor * on_demand_num_instances
-            plt.hlines(result.average_cost, 0, duration_hours, color='tab:blue', linestyles='dashed')
-            plt.hlines(on_demand_cost_per_hour, 0, duration_hours, color='red')
+            on_demand_value = on_demand_tokens_per_second / on_demand_cost_per_hour
 
-            plt.plot(self.cost_xs, self.cost_ys)
-            plt.xlim(0, duration_hours)
-            plt.ylim(0)
-            plt.xlabel('Time (hours)')
-            plt.ylabel('Cost ($ per hour)')
-            plt.xticks(range(0, duration_hours + 1, 12))
-            ax = plt.gca()
-            ax.spines['right'].set_visible(False)
-            ax.spines['top'].set_visible(False)
-
-            plt.savefig(
-                f'cost{pdf_suffix}',
-                bbox_inches='tight',
-                pad_inches=0
+            # Instances graph
+            graph(
+                'Time (hours)',
+                instances_xs,
+                duration_hours,
+                '# Instances',
+                instances_ys,
+                self.spot_instance_desired_capacity,
+                result.average_instances,
+                on_demand=on_demand_num_instances,
+                out=f'instances{pdf_suffix}',
+                show=True,
             )
-            plt.show()
 
-            plt.hlines(
-                on_demand_tokens_per_second / on_demand_cost_per_hour,
-                0, duration_hours, color='red'
+            # Performance graph
+            graph(
+                'Time (hours)',
+                self.performance_xs,
+                duration_hours,
+                'Performance (tokens per second)',
+                self.performance_ys,
+                max(on_demand_tokens_per_second, max(self.performance_ys)),
+                result.average_performance,
+                on_demand=on_demand_tokens_per_second,
+                out=f'performance{pdf_suffix}',
+                show=True,
             )
-            plt.hlines(result.average_value, 0, duration_hours, color='tab:blue', linestyles='dashed')
-            plt.plot(self.value_xs, self.value_ys)
-            plt.xlim(0, duration_hours)
-            plt.ylim(0)
-            plt.xlabel('Time (hours)')
-            plt.ylabel('Value (performance per cost)')
-            plt.xticks(range(0, duration_hours + 1, 12))
-            ax = plt.gca()
-            ax.spines['right'].set_visible(False)
-            ax.spines['top'].set_visible(False)
-            
-            plt.savefig(
-                f'value{pdf_suffix}',
-                bbox_inches='tight',
-                pad_inches=0
-            )
-            plt.show()
 
+            # Cost graph
+            graph(
+                'Time (hours)',
+                self.cost_xs,
+                duration_hours,
+                'Cost ($ per hour)',
+                self.cost_ys,
+                max(on_demand_cost_per_hour, max(self.cost_ys)),
+                result.average_cost,
+                on_demand=on_demand_cost_per_hour,
+                out=f'cost{pdf_suffix}',
+                show=True,
+            )
+
+            # Value graph
+            graph(
+                'Time (hours)',
+                self.value_xs,
+                duration_hours,
+                'Value (performance per cost)',
+                self.value_ys,
+                max(on_demand_value, max(self.value_ys)),
+                result.average_value,
+                on_demand=on_demand_value,
+                out=f'value{pdf_suffix}',
+                show=True,
+            )
 
         # print('Preemptions')
         # print('  - Mean:', result.preemption_mean, 'hours')
