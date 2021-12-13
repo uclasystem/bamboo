@@ -24,20 +24,21 @@ def graph(xlabel, xs, xmax, ylabel, ys, ymax, average,
           on_demand=None, out=None, show=False):
         import matplotlib.pyplot as plt
 
-        plt.clf()
-
         # sizes: xx-small, x-small, small, medium, large, x-large, xx-large
         params = {
             'font.family': 'Inter',
-            'legend.fontsize': 'medium',
-            'axes.labelsize': 'medium',
-            'axes.titlesize': 'medium',
-            'xtick.labelsize': 'medium',
-            'ytick.labelsize': 'medium',
+            'legend.fontsize': 'x-small',
+            'axes.labelsize': 'x-small',
+            'axes.titlesize': 'x-small',
+            'xtick.labelsize': 'x-small',
+            'ytick.labelsize': 'x-small',
+            'figure.figsize': (3.0, 1.7),
         }
         plt.rcParams.update(params)
 
-        plt.plot(xs, ys)
+        plt.clf()
+
+        plt.plot(xs, ys, linewidth=0.5)
 
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
