@@ -219,7 +219,6 @@ class Simulator:
             self.samples_per_step = 264
 
             self.spot_instance_desired_capacity = 24
-
             self.simulate_step_delta = self.gpt_2_simulate_step_delta
             self.local_rendezvous_timeout_delta = 20_000 # milliseconds
             self.num_stages_target = 8
@@ -231,12 +230,66 @@ class Simulator:
         elif model == 'BERT':
             self.samples_per_step = 264
 
+            self.spot_instance_desired_capacity = 24
+            self.simulate_step_delta = self.bert_simulate_step_delta
+            self.local_rendezvous_timeout_delta = 20_000 # milliseconds
+            self.num_stages_target = 8
+
             self.on_demand_num_instances = 3 * 5
             self.on_demand_cost = self.on_demand_num_instances * self.on_demand_cost_per_hour
             self.on_demand_performance = self.samples_per_step / 3.05
             self.on_demand_value = self.on_demand_performance / self.on_demand_cost
+        elif model == 'ResNet':
+            self.samples_per_step = 384
+
+            self.spot_instance_desired_capacity = 24
+            self.simulate_step_delta = self.resnet_simulate_step_delta
+            self.local_rendezvous_timeout_delta = 10_000 # milliseconds
+            self.num_stages_target = 8
+
+            self.on_demand_num_instances = 3 * 5
+            self.on_demand_cost = self.on_demand_num_instances * self.on_demand_cost_per_hour
+            self.on_demand_performance = self.samples_per_step / 1.7
+            self.on_demand_value = self.on_demand_performance / self.on_demand_cost
+        elif model == 'GNMT':
+            self.samples_per_step = 288
+
+            self.spot_instance_desired_capacity = 24
+            self.simulate_step_delta = self.gnmt_simulate_step_delta
+            self.local_rendezvous_timeout_delta = 10_000 # milliseconds
+            self.num_stages_target = 6
+
+            self.on_demand_num_instances = 4 * 4
+            self.on_demand_cost = self.on_demand_num_instances * self.on_demand_cost_per_hour
+            self.on_demand_performance = self.samples_per_step / 0.9
+            self.on_demand_value = self.on_demand_performance / self.on_demand_cost
+        elif model == 'VGG':
+            self.samples_per_step = 384
+
+            self.spot_instance_desired_capacity = 24
+            self.simulate_step_delta = self.vgg_simulate_step_delta
+            self.local_rendezvous_timeout_delta = 5_000 # milliseconds
+            self.num_stages_target = 6
+
+            self.on_demand_num_instances = 4 * 4
+            self.on_demand_cost = self.on_demand_num_instances * self.on_demand_cost_per_hour
+            self.on_demand_performance = self.samples_per_step / 2.2
+            self.on_demand_value = self.on_demand_performance / self.on_demand_cost
+        elif model == 'AlexNet':
+            self.samples_per_step = 384
+
+            self.spot_instance_desired_capacity = 24
+            self.simulate_step_delta = self.alexnet_simulate_step_delta
+            self.local_rendezvous_timeout_delta = 5_000 # milliseconds
+            self.num_stages_target = 6
+
+            self.on_demand_num_instances = 4 * 4
+            self.on_demand_cost = self.on_demand_num_instances * self.on_demand_cost_per_hour
+            self.on_demand_performance = self.samples_per_step / 1.6
+            self.on_demand_value = self.on_demand_performance / self.on_demand_cost
         else:
             raise NotImplementedError
+        self.model = model
 
     def generate_probabilities(self):
         probability = {}
@@ -254,11 +307,61 @@ class Simulator:
         else:
             raise NotImplementedError
 
-        #self.step_delta = int(self.time_for_single_pipeline / self.num_pipelines)
+    def bert_simulate_step_delta(self):
+        if self.num_pipelines == 3 and self.num_stages == 8:
+            self.step_delta = 2_300 # milliseconds
+        elif self.num_pipelines == 2 and self.num_stages == 8:
+            self.step_delta = 3_100 # milliseconds
+        elif self.num_pipelines == 1 and self.num_stages == 8:
+            self.step_delta = 5_700 # milliseconds
+        else:
+            raise NotImplementedError
 
-        #num_workers_overloaded = self.get_num_workers_overloaded()
-        #if num_workers_overloaded > 1:
-        #    self.step_delta = int(self.step_delta * 1.5)
+    def reset_simulate_step_delta(self):
+        if self.num_pipelines == 3 and self.num_stages == 8:
+            self.step_delta = 2_400 # milliseconds
+        elif self.num_pipelines == 2 and self.num_stages == 8:
+            self.step_delta = 3_200 # milliseconds
+        elif self.num_pipelines == 1 and self.num_stages == 8:
+            self.step_delta = 6_100 # milliseconds
+        else:
+            raise NotImplementedError
+
+    def gnmt_simulate_step_delta(self):
+        if self.num_pipelines == 4 and self.num_stages == 6:
+            self.step_delta = 950 # milliseconds
+        if self.num_pipelines == 3 and self.num_stages == 6:
+            self.step_delta = 1_185 # milliseconds
+        elif self.num_pipelines == 2 and self.num_stages == 6:
+            self.step_delta = 1_660 # milliseconds
+        elif self.num_pipelines == 1 and self.num_stages == 6:
+            self.step_delta = 3_100 # milliseconds
+        else:
+            raise NotImplementedError
+
+    def vgg_simulate_step_delta(self):
+        if self.num_pipelines == 4 and self.num_stages == 6:
+            self.step_delta = 2_750 # milliseconds
+        if self.num_pipelines == 3 and self.num_stages == 6:
+            self.step_delta = 3_440 # milliseconds
+        elif self.num_pipelines == 2 and self.num_stages == 6:
+            self.step_delta = 4_900 # milliseconds
+        elif self.num_pipelines == 1 and self.num_stages == 6:
+            self.step_delta = 9_300 # milliseconds
+        else:
+            raise NotImplementedError
+
+    def alexnet_simulate_step_delta(self):
+        if self.num_pipelines == 4 and self.num_stages == 6:
+            self.step_delta = 1_550 # milliseconds
+        if self.num_pipelines == 3 and self.num_stages == 6:
+            self.step_delta = 2_000 # milliseconds
+        elif self.num_pipelines == 2 and self.num_stages == 6:
+            self.step_delta = 3_100 # milliseconds
+        elif self.num_pipelines == 1 and self.num_stages == 6:
+            self.step_delta = 6_180 # milliseconds
+        else:
+            raise NotImplementedError
 
     def info(self, delta, message):
         logger.info(f'[{delta/1000.0:.3f}] {message}')
