@@ -317,7 +317,7 @@ class Simulator:
         else:
             raise NotImplementedError
 
-    def reset_simulate_step_delta(self):
+    def resnet_simulate_step_delta(self):
         if self.num_pipelines == 3 and self.num_stages == 8:
             self.step_delta = 2_400 # milliseconds
         elif self.num_pipelines == 2 and self.num_stages == 8:
@@ -330,7 +330,7 @@ class Simulator:
     def gnmt_simulate_step_delta(self):
         if self.num_pipelines == 4 and self.num_stages == 6:
             self.step_delta = 950 # milliseconds
-        if self.num_pipelines == 3 and self.num_stages == 6:
+        elif self.num_pipelines == 3 and self.num_stages == 6:
             self.step_delta = 1_185 # milliseconds
         elif self.num_pipelines == 2 and self.num_stages == 6:
             self.step_delta = 1_660 # milliseconds
@@ -342,7 +342,7 @@ class Simulator:
     def vgg_simulate_step_delta(self):
         if self.num_pipelines == 4 and self.num_stages == 6:
             self.step_delta = 2_750 # milliseconds
-        if self.num_pipelines == 3 and self.num_stages == 6:
+        elif self.num_pipelines == 3 and self.num_stages == 6:
             self.step_delta = 3_440 # milliseconds
         elif self.num_pipelines == 2 and self.num_stages == 6:
             self.step_delta = 4_900 # milliseconds
@@ -354,7 +354,7 @@ class Simulator:
     def alexnet_simulate_step_delta(self):
         if self.num_pipelines == 4 and self.num_stages == 6:
             self.step_delta = 1_550 # milliseconds
-        if self.num_pipelines == 3 and self.num_stages == 6:
+        elif self.num_pipelines == 3 and self.num_stages == 6:
             self.step_delta = 2_000 # milliseconds
         elif self.num_pipelines == 2 and self.num_stages == 6:
             self.step_delta = 3_100 # milliseconds
@@ -912,7 +912,8 @@ class Simulator:
 
         if self.generate_graphs:
             from .api import graph
-            pdf_suffix = f'-seed-{self.seed}-start-hour-{self.start_hour}-generate-addition-probabilities-{self.generate_addition_probabilities}-removal-probability-{self.removal_probability}.pdf'
+            #pdf_suffix = f'-seed-{self.seed}-start-hour-{self.start_hour}-generate-addition-probabilities-{self.generate_addition_probabilities}-removal-probability-{self.removal_probability}.pdf'
+            pdf_suffix = f'-{self.model}.pdf'
 
             # Instances graph
             graph(
@@ -925,7 +926,7 @@ class Simulator:
                 result.average_instances,
                 on_demand=self.on_demand_num_instances,
                 out=f'instances{pdf_suffix}',
-                show=True,
+                show=False,
             )
 
             # Performance graph
@@ -939,8 +940,11 @@ class Simulator:
                 result.average_performance,
                 on_demand=self.on_demand_performance,
                 out=f'performance{pdf_suffix}',
-                show=True,
+                show=False,
             )
+
+            print('Model:', self.model)
+            print('  Performance:', 'D', self.on_demand_performance, 'B', result.average_performance)
 
             # Cost graph
             graph(
@@ -953,8 +957,10 @@ class Simulator:
                 result.average_cost,
                 on_demand=self.on_demand_cost,
                 out=f'cost{pdf_suffix}',
-                show=True,
+                show=False,
             )
+
+            print('  Cost:', 'D', self.on_demand_cost, 'B', result.average_cost)
 
             # Value graph
             graph(
@@ -967,8 +973,10 @@ class Simulator:
                 result.average_value,
                 on_demand=self.on_demand_value,
                 out=f'value{pdf_suffix}',
-                show=True,
+                show=False,
             )
+
+            print('  Value:', 'D', self.on_demand_value, 'B', result.average_value)
 
         # print('Preemptions')
         # print('  - Mean:', result.preemption_mean, 'hours')
