@@ -160,9 +160,9 @@ def main(args):
             removal_probability=options.removal_probability,
             generate_graphs=options.generate_graphs,
             spot_instance_trace=options.spot_instance_trace,
-            model='VGG',
+            model='GPT-2',
         )
         simulator.simulate(duration=43_200_000)
-        #simulator.simulate(duration=1_200_000)
+        # simulator.simulate(duration=1_200_000)
     else:
         generate_table()

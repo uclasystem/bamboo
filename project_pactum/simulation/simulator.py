@@ -1009,7 +1009,7 @@ class Simulator:
                 result.average_instances,
                 on_demand=self.on_demand_num_instances,
                 out=f'instances{pdf_suffix}',
-                show=True,
+                show=False,
             )
 
             # Performance graph
@@ -1023,7 +1023,7 @@ class Simulator:
                 result.average_performance,
                 on_demand=self.on_demand_performance,
                 out=f'performance{pdf_suffix}',
-                show=True,
+                show=False,
             )
 
             print('Model:', self.model)
@@ -1040,7 +1040,7 @@ class Simulator:
                 result.average_cost,
                 on_demand=self.on_demand_cost,
                 out=f'cost{pdf_suffix}',
-                show=True,
+                show=False,
             )
 
             print('  Cost:', 'D', self.on_demand_cost, 'B', result.average_cost)
@@ -1056,7 +1056,7 @@ class Simulator:
                 result.average_value,
                 on_demand=self.on_demand_value,
                 out=f'value{pdf_suffix}',
-                show=True,
+                show=False,
             )
 
             print('  Value:', 'D', self.on_demand_value, 'B', result.average_value)
