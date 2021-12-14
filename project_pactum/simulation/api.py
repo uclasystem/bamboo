@@ -18,6 +18,7 @@ def parse(args):
     parser.add_argument('--removal-probability', type=float, default=None)
     parser.add_argument('--generate-graphs', action='store_true')
     parser.add_argument('--generate-table', action='store_true')
+    parser.add_argument('--spot-instance-trace', type=argparse.FileType('r'), default=None)
     return parser.parse_args(args)
 
 def graph(xlabel, xs, xmax, ylabel, ys, ymax, average,
@@ -158,6 +159,7 @@ def main(args):
             generate_addition_probabilities=options.generate_addition_probabilities,
             removal_probability=options.removal_probability,
             generate_graphs=options.generate_graphs,
+            spot_instance_trace=options.spot_instance_trace,
         )
         simulator.simulate(duration=43_200_000)
     else:

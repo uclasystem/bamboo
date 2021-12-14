@@ -1,3 +1,4 @@
+import csv
 import dataclasses
 import datetime
 import enum
@@ -87,10 +88,12 @@ class Simulator:
     def __init__(self,
                  seed=None,
                  start_hour=None,
+                 model='GPT-2',
+                 spot_instance_trace=None,
                  generate_addition_probabilities=False,
                  removal_probability=None,
-                 generate_graphs=False,
-                 model='GPT-2'):
+                 generate_graphs=False):
+        self.spot_instance_trace = spot_instance_trace
         self.generate_graphs = generate_graphs
 
         self.seed = seed
@@ -110,7 +113,6 @@ class Simulator:
 
         self.spot_instance_name_format = 'node{id}'
         self.spot_instance_next_id = 1
-        self.spot_instance_desired_capacity = 60
         if not generate_addition_probabilities:
             self.spot_instance_addition_probability = {
                 0: 0.05,
@@ -171,18 +173,10 @@ class Simulator:
             self.spot_instance_removal_probability = {}
             for hour in range(24):
                 self.spot_instance_removal_probability[hour] = removal_probability
+
         self.start_hour = start_hour
         self.spot_instance_creation_time = 45_000 # milliseconds
         self.global_rendezvous_timeout_delta = 30_000 # milliseconds
-        self.local_rendezvous_timeout_delta = 1_000 # milliseconds
-        self.time_for_single_pipeline = 10_000 # milliseconds
-
-        self.equal_performance_factor = 1.5
-        self.num_stages_minimum = 6
-        self.on_demand_num_stages = self.num_stages_minimum / self.equal_performance_factor
-        assert self.on_demand_num_stages % 1.0 == 0.0
-        self.on_demand_num_stages = int(self.on_demand_num_stages)
-        self.on_demand_price_factor = 0.3
 
         self.spot_instances = {}
         self.rendezvous_version = 0
@@ -207,7 +201,6 @@ class Simulator:
         self.performance_xs = []
         self.performance_ys = []
 
-        self.cost_dollars_per_hour_per_instance = 0.90
         self.cost_xs = []
         self.cost_ys = []
 
@@ -219,12 +212,31 @@ class Simulator:
 
         self.status = SystemStatus.STOPPED
 
+        self.on_demand_cost_per_hour = 3.06
+        self.spot_instance_cost_per_hour = 0.91
+
         if model == 'GPT-2':
+            self.samples_per_step = 264
+
+            self.spot_instance_desired_capacity = 24
+
             self.simulate_step_delta = self.gpt_2_simulate_step_delta
-            self.samples_per_step = 16_384
-            self.steps_per_run = 183_106
+            self.local_rendezvous_timeout_delta = 20_000 # milliseconds
+            self.num_stages_target = 8
+
+            self.on_demand_num_instances = 3 * 5
+            self.on_demand_cost = self.on_demand_num_instances * self.on_demand_cost_per_hour
+            self.on_demand_performance = self.samples_per_step / 4.25
+            self.on_demand_value = self.on_demand_performance / self.on_demand_cost
+        elif model == 'BERT':
+            self.samples_per_step = 264
+
+            self.on_demand_num_instances = 3 * 5
+            self.on_demand_cost = self.on_demand_num_instances * self.on_demand_cost_per_hour
+            self.on_demand_performance = self.samples_per_step / 3.05
+            self.on_demand_value = self.on_demand_performance / self.on_demand_cost
         else:
-            raise NotImplemented()
+            raise NotImplementedError
 
     def generate_probabilities(self):
         probability = {}
@@ -233,12 +245,20 @@ class Simulator:
         return probability
 
     def gpt_2_simulate_step_delta(self):
-        # TODO: I need help with this, it shouldn't be constant
-        self.step_delta = int(self.time_for_single_pipeline / self.num_pipelines)
+        if self.num_pipelines == 3 and self.num_stages == 8:
+            self.step_delta = 3_080 # milliseconds
+        elif self.num_pipelines == 2 and self.num_stages == 8:
+            self.step_delta = 4_200 # milliseconds
+        elif self.num_pipelines == 1 and self.num_stages == 8:
+            self.step_delta = 7_700 # milliseconds
+        else:
+            raise NotImplementedError
 
-        num_workers_overloaded = self.get_num_workers_overloaded()
-        if num_workers_overloaded > 1:
-            self.step_delta = int(self.step_delta * 1.5)
+        #self.step_delta = int(self.time_for_single_pipeline / self.num_pipelines)
+
+        #num_workers_overloaded = self.get_num_workers_overloaded()
+        #if num_workers_overloaded > 1:
+        #    self.step_delta = int(self.step_delta * 1.5)
 
     def info(self, delta, message):
         logger.info(f'[{delta/1000.0:.3f}] {message}')
@@ -292,12 +312,12 @@ class Simulator:
     def create_spot_instance_generate_event(self, delta):
         return self.create_event(delta, EventKind.SPOT_INSTANCE_GENERATE, {})
 
-    def create_spot_instance_add_event(self, delta):
-        name = self.get_spot_instance_next_name()
+    def create_spot_instance_add_event(self, delta, name=None):
+        if name is None:
+           name = self.get_spot_instance_next_name()
         return self.create_event(delta, EventKind.SPOT_INSTANCE_ADD, {
             'name': name,
         })
-
     def create_spot_instance_remove_event(self, delta, name):
         return self.create_event(delta, EventKind.SPOT_INSTANCE_REMOVE, {
             'name': name,
@@ -416,7 +436,7 @@ class Simulator:
     def append_cost(self, delta):
         self.cost_xs.append(delta / self.milliseconds_per_hour)
         self.cost_ys.append(
-            self.cost_dollars_per_hour_per_instance * len(self.spot_instances)
+            self.spot_instance_cost_per_hour * len(self.spot_instances)
         )
         self.append_value(delta)
 
@@ -424,6 +444,8 @@ class Simulator:
         if len(self.performance_ys) == 0 or len(self.cost_ys) == 0:
             return
         if self.cost_ys[-1] == 0.0:
+            self.value_xs.append(delta / self.milliseconds_per_hour)
+            self.value_ys.append(0)
             return
 
         self.value_xs.append(delta / self.milliseconds_per_hour)
@@ -566,11 +588,11 @@ class Simulator:
         self.simulate_rendezvous_timeout(delta, False)
 
     def simulate_assign_coordinates(self):
-        if len(self.rendezvous) < self.num_stages_minimum:
+        if len(self.rendezvous) < self.num_stages_target:
             num_pipelines = 0
             num_stages = 0
         else:
-            num_stages = self.num_stages_minimum
+            num_stages = self.num_stages_target
             num_pipelines = len(self.rendezvous) // num_stages
         num_workers_waiting = 0
 
@@ -627,7 +649,7 @@ class Simulator:
             return True
 
         # If we can add another pipeline, do it
-        potential_num_pipelines = (num_active_workers + num_workers_waiting) // self.num_stages_minimum
+        potential_num_pipelines = (num_active_workers + num_workers_waiting) // self.num_stages_target
         if potential_num_pipelines > self.num_pipelines:
             return True
 
@@ -658,6 +680,7 @@ class Simulator:
         self.performance_xs.append(delta / self.milliseconds_per_hour)
         self.performance_ys.append(samples_per_second)
         self.previous_step_complete_delta = delta
+        self.append_value(delta)
 
         if self.num_steps_complete % 100 == 0:
             self.info(delta, f'{self.num_steps_complete} steps complete')
@@ -692,8 +715,20 @@ class Simulator:
 
         logger.info(f'Starting at {start}')
 
-        logger.info(f'Generating spot instance events...')
-        self.generate_spot_instance_initial_events(start)
+        if self.spot_instance_trace is None:
+            logger.info(f'Generating spot instance events...')
+            self.generate_spot_instance_initial_events(start)
+        else:
+            reader = csv.reader(self.spot_instance_trace)
+            for row in reader:
+                delta, event, name = row
+                delta = int(delta)
+                if event == 'add':
+                    self.create_spot_instance_add_event(delta, name)
+                elif event == 'remove':
+                    self.create_spot_instance_remove_event(delta, name)
+                else:
+                    raise NotImplementedError
 
         instances_xs = []
         instances_ys = []
@@ -757,8 +792,8 @@ class Simulator:
 
         result = Result(
             removal_probability = self.removal_probability,
-            preemption_mean = statistics.mean(spot_instance_between_removal_times) / self.milliseconds_per_hour,
-            preemption_median = statistics.mean(spot_instance_between_removal_times) / self.milliseconds_per_hour,
+            preemption_mean = statistics.mean(spot_instance_between_removal_times) / self.milliseconds_per_hour if len(spot_instance_between_removal_times) > 0 else 0,
+            preemption_median = statistics.mean(spot_instance_between_removal_times) / self.milliseconds_per_hour if len(spot_instance_between_removal_times) > 0 else 0,
             preemption_stdev = statistics.stdev(spot_instance_between_removal_times) / self.milliseconds_per_hour if len(spot_instance_between_removal_times) > 1 else 0,
             lifetime_mean = statistics.mean(self.spot_instance_lifetimes) / self.milliseconds_per_hour,
             lifetime_median = statistics.median(self.spot_instance_lifetimes) / self.milliseconds_per_hour,
@@ -776,14 +811,6 @@ class Simulator:
             from .api import graph
             pdf_suffix = f'-seed-{self.seed}-start-hour-{self.start_hour}-generate-addition-probabilities-{self.generate_addition_probabilities}-removal-probability-{self.removal_probability}.pdf'
 
-            # Calculation on-demand statistics
-            on_demand_num_pipelines = self.spot_instance_desired_capacity // self.num_stages_minimum
-            on_demand_num_instances = on_demand_num_pipelines * self.on_demand_num_stages
-            on_demand_time_to_step_complete = self.time_for_single_pipeline / on_demand_num_pipelines
-            on_demand_samples_per_second = self.samples_per_step / (on_demand_time_to_step_complete / self.milliseconds_per_second)
-            on_demand_cost_per_hour = self.cost_dollars_per_hour_per_instance / self.on_demand_price_factor * on_demand_num_instances
-            on_demand_value = on_demand_samples_per_second / on_demand_cost_per_hour
-
             # Instances graph
             graph(
                 'Time (hours)',
@@ -791,11 +818,11 @@ class Simulator:
                 duration_hours,
                 '# Instances',
                 instances_ys,
-                self.spot_instance_desired_capacity,
+                max(self.on_demand_num_instances, max(instances_ys)),
                 result.average_instances,
-                on_demand=on_demand_num_instances,
+                on_demand=self.on_demand_num_instances,
                 out=f'instances{pdf_suffix}',
-                show=False,
+                show=True,
             )
 
             # Performance graph
@@ -805,11 +832,11 @@ class Simulator:
                 duration_hours,
                 'Performance (samples per second)',
                 self.performance_ys,
-                max(on_demand_samples_per_second, max(self.performance_ys)),
+                max(self.on_demand_performance, max(self.performance_ys)),
                 result.average_performance,
-                on_demand=on_demand_samples_per_second,
+                on_demand=self.on_demand_performance,
                 out=f'performance{pdf_suffix}',
-                show=False,
+                show=True,
             )
 
             # Cost graph
@@ -819,11 +846,11 @@ class Simulator:
                 duration_hours,
                 'Cost ($ per hour)',
                 self.cost_ys,
-                max(on_demand_cost_per_hour, max(self.cost_ys)),
+                max(self.on_demand_cost, max(self.cost_ys)),
                 result.average_cost,
-                on_demand=on_demand_cost_per_hour,
+                on_demand=self.on_demand_cost,
                 out=f'cost{pdf_suffix}',
-                show=False,
+                show=True,
             )
 
             # Value graph
@@ -833,9 +860,9 @@ class Simulator:
                 duration_hours,
                 'Value (performance per cost)',
                 self.value_ys,
-                max(on_demand_value, max(self.value_ys)),
+                max(self.on_demand_value, max(self.value_ys)),
                 result.average_value,
-                on_demand=on_demand_value,
+                on_demand=self.on_demand_value,
                 out=f'value{pdf_suffix}',
                 show=True,
             )
