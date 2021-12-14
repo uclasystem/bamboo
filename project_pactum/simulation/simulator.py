@@ -209,6 +209,7 @@ class Simulator:
 
         if model == 'GPT-2':
             self.samples_per_step = 264
+            self.steps_per_run = 183_106
 
             self.spot_instance_desired_capacity = 24
             self.simulate_step_delta = self.gpt_2_simulate_step_delta
@@ -792,8 +793,12 @@ class Simulator:
         while True:
             x1 = self.cost_xs[i]
             y1 = self.cost_ys[i]
-            x2 = self.cost_xs[i-1]
-            y2 = self.cost_ys[i-1]
+            try:
+                x2 = self.cost_xs[i-1]
+                y2 = self.cost_ys[i-1]
+            except IndexError:
+                total_cost += current_cost_per_hour * (current_cost_delta - previous_delta_hours)
+                break
             assert x1 == x2
 
             if x1 > previous_delta_hours:
@@ -936,19 +941,19 @@ class Simulator:
             if delta == next_delta:
                 continue
 
-            previous_num_instances = instances_ys[-1]
-            num_instances = len(self.spot_instances)
-            if previous_num_instances != num_instances:
-                delta_hours = delta / self.milliseconds_per_hour
-                instances_xs.append(delta_hours)
-                instances_ys.append(previous_num_instances)
-                self.cost_xs.append(delta_hours)
-                self.cost_ys.append(previous_num_instances * self.spot_instance_cost_per_hour)
-                instances_xs.append(delta_hours)
-                instances_ys.append(num_instances)
-                self.cost_xs.append(delta_hours)
-                self.cost_ys.append(num_instances * self.spot_instance_cost_per_hour)
-
+            if len(instances_ys) > 0:
+                previous_num_instances = instances_ys[-1]
+                num_instances = len(self.spot_instances)
+                if previous_num_instances != num_instances:
+                    delta_hours = delta / self.milliseconds_per_hour
+                    instances_xs.append(delta_hours)
+                    instances_ys.append(previous_num_instances)
+                    self.cost_xs.append(delta_hours)
+                    self.cost_ys.append(previous_num_instances * self.spot_instance_cost_per_hour)
+                    instances_xs.append(delta_hours)
+                    instances_ys.append(num_instances)
+                    self.cost_xs.append(delta_hours)
+                    self.cost_ys.append(num_instances * self.spot_instance_cost_per_hour)
 
         duration_hours_whole = math.ceil(delta / self.milliseconds_per_hour)
 
