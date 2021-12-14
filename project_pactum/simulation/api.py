@@ -162,6 +162,7 @@ def main(args):
             spot_instance_trace=options.spot_instance_trace,
             model='GPT-2',
         )
+        # simulator.simulate()
         simulator.simulate(duration=43_200_000)
         # simulator.simulate(duration=1_200_000)
     else:

@@ -840,13 +840,18 @@ class Simulator:
             )
 
     def calculate_average(self, xs, ys, duration):
-        ts = list(zip(xs, ys))
+        previous_x = None
+        previous_y = None
         total = 0.0
-        while len(ts) > 0:
-            x1, y1 = ts.pop(0)
-            x2, y2 = ts.pop(0)
-            assert y1 == y2
-            total += (x2 - x1) * y1
+        for x, y in zip(xs, ys):
+            if previous_x is None:
+                previous_x = x
+                previous_y = y
+            else:
+                assert previous_y == y
+                total += (x - previous_x) * y
+                previous_x = None
+                previous_y = None
         return total / duration
 
     def calculate_average_old(self, xs, ys, duration):
