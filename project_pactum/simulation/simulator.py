@@ -211,7 +211,7 @@ class Simulator:
             self.samples_per_step = 264
             self.steps_per_run = 183_106
 
-            self.spot_instance_desired_capacity = 24
+            self.spot_instance_desired_capacity = 32
             self.simulate_step_delta = self.gpt_2_simulate_step_delta
             self.local_rendezvous_timeout_delta = 20_000 # milliseconds
             self.num_stages_target = 8
@@ -240,9 +240,9 @@ class Simulator:
             self.local_rendezvous_timeout_delta = 10_000 # milliseconds
             self.num_stages_target = 8
 
-            self.on_demand_num_instances = 3 * 5
+            self.on_demand_num_instances = 4 * 5
             self.on_demand_cost = self.on_demand_num_instances * self.on_demand_cost_per_hour
-            self.on_demand_performance = self.samples_per_step / 1.7
+            self.on_demand_performance = self.samples_per_step / 1.3
             self.on_demand_value = self.on_demand_performance / self.on_demand_cost
         elif model == 'GNMT':
             self.samples_per_step = 288
@@ -291,7 +291,9 @@ class Simulator:
         return probability
 
     def gpt_2_simulate_step_delta(self):
-        if self.num_pipelines == 3 and self.num_stages == 8:
+        if self.num_pipelines == 4 and self.num_stages == 8:
+            self.step_delta = 2_390 # milliseconds
+        elif self.num_pipelines == 3 and self.num_stages == 8:
             self.step_delta = 3_080 # milliseconds
         elif self.num_pipelines == 2 and self.num_stages == 8:
             self.step_delta = 4_200 # milliseconds
@@ -311,7 +313,9 @@ class Simulator:
             raise NotImplementedError
 
     def resnet_simulate_step_delta(self):
-        if self.num_pipelines == 3 and self.num_stages == 8:
+        if self.num_pipelines == 4 and self.num_stages == 8:
+            self.step_delta = 1_600 # milliseconds
+        elif self.num_pipelines == 3 and self.num_stages == 8:
             self.step_delta = 2_400 # milliseconds
         elif self.num_pipelines == 2 and self.num_stages == 8:
             self.step_delta = 3_200 # milliseconds
@@ -1018,7 +1022,7 @@ class Simulator:
                 result.average_instances,
                 on_demand=self.on_demand_num_instances,
                 out=f'instances{pdf_suffix}',
-                show=False,
+                show=True,
             )
 
             # Performance graph
