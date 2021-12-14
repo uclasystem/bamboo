@@ -196,16 +196,8 @@ class Simulator:
         self.spot_instance_removal_times = []
         self.spot_instance_lifetimes = []
 
+        self.start_delta = None
         self.previous_step_complete_delta = 0
-
-        self.performance_xs = []
-        self.performance_ys = []
-
-        self.cost_xs = []
-        self.cost_ys = []
-
-        self.value_xs = []
-        self.value_ys = []
 
         self.events = []
         heapq.heapify(self.events)
@@ -536,25 +528,18 @@ class Simulator:
                     continue
                 heapq.heappush(removed_instances, (delta, name))
 
-    def append_cost(self, delta):
-        self.cost_xs.append(delta / self.milliseconds_per_hour)
-        self.cost_ys.append(
-            self.spot_instance_cost_per_hour * len(self.spot_instances)
-        )
-        self.append_value(delta)
+    # def append_value(self, delta):
+    #     if len(self.performance_ys) == 0 or len(self.cost_ys) == 0:
+    #         return
+    #     if self.cost_ys[-1] == 0.0:
+    #         self.value_xs.append(delta / self.milliseconds_per_hour)
+    #         self.value_ys.append(0)
+    #         return
 
-    def append_value(self, delta):
-        if len(self.performance_ys) == 0 or len(self.cost_ys) == 0:
-            return
-        if self.cost_ys[-1] == 0.0:
-            self.value_xs.append(delta / self.milliseconds_per_hour)
-            self.value_ys.append(0)
-            return
-
-        self.value_xs.append(delta / self.milliseconds_per_hour)
-        self.value_ys.append(
-            self.performance_ys[-1] / self.cost_ys[-1]
-        )
+    #     self.value_xs.append(delta / self.milliseconds_per_hour)
+    #     self.value_ys.append(
+    #         self.performance_ys[-1] / self.cost_ys[-1]
+    #     )
 
     def simulate_spot_instance_add(self, delta, data):
         name = data['name']
@@ -563,7 +548,6 @@ class Simulator:
             delta + self.spot_instance_creation_time,
             name,
         )
-        self.append_cost(delta)
 
     def simulate_fatal_failure(self, delta, name):
         self.info(
@@ -581,8 +565,6 @@ class Simulator:
         self.spot_instance_lifetimes.append(delta - instance.start)
         self.spot_instance_removal_times.append(delta)
         del self.spot_instances[name]
-
-        self.append_cost(delta)
 
         if instance.is_running():
             # This is a fatal failure
@@ -663,6 +645,9 @@ class Simulator:
             self.simulate_step_delta()
             self.create_training_step_complete_event(delta,
                                                      self.rendezvous_version)
+            if self.start_delta is None:
+                self.start_delta = delta
+                self.previous_step_complete_delta = self.start_delta
         else:
             self.status = SystemStatus.STOPPED
 
@@ -777,13 +762,63 @@ class Simulator:
                 return
 
         self.num_steps_complete += 1
+
         # Calculate performance
-        time_to_step_complete = delta - self.previous_step_complete_delta
-        samples_per_second = self.samples_per_step / (time_to_step_complete / self.milliseconds_per_second)
-        self.performance_xs.append(delta / self.milliseconds_per_hour)
+        step_duration = delta - self.previous_step_complete_delta # milliseconds
+        #print('Step duration:', step_duration)
+        step_duration_seconds = step_duration / self.milliseconds_per_second
+        step_duration_hours = step_duration / self.milliseconds_per_hour
+        #print('Step duration (s):', step_duration_seconds)
+        samples_per_second = self.samples_per_step / step_duration_seconds
+
+
+        previous_delta_hours = self.previous_step_complete_delta / self.milliseconds_per_hour
+        delta_hours = delta / self.milliseconds_per_hour
+        self.performance_xs.append(previous_delta_hours)
         self.performance_ys.append(samples_per_second)
+        self.performance_xs.append(delta_hours)
+        self.performance_ys.append(samples_per_second)
+
+        
+        current_cost_per_hour = self.cost_ys[-1]
+        current_cost_delta = delta_hours
+        total_cost = 0.0
+        #print('Previous delta hours:', previous_delta_hours)
+        #print('Delta hours:', delta_hours)
+        #print('Duration (s):', step_duration_hours)
+        #print(self.cost_xs, self.cost_ys)
+        #print('Finding the cost...', current_cost_per_hour)
+        i = -1
+        while True:
+            x1 = self.cost_xs[i]
+            y1 = self.cost_ys[i]
+            x2 = self.cost_xs[i-1]
+            y2 = self.cost_ys[i-1]
+            assert x1 == x2
+
+            if x1 > previous_delta_hours:
+                total_cost += current_cost_per_hour * (current_cost_delta - x1)
+                current_cost_per_hour = y2
+                current_cost_delta = x1
+            else:
+                total_cost += current_cost_per_hour * (current_cost_delta - previous_delta_hours)
+                break
+            i -= 2
+
+        average_cost_per_hour = total_cost / step_duration_hours
+        
+        self.value_xs.append(previous_delta_hours)
+        self.value_ys.append(samples_per_second / average_cost_per_hour)
+        self.value_xs.append(delta_hours)
+        self.value_ys.append(samples_per_second / average_cost_per_hour)
+
+            #print('x1 y1 x2 y2', x1,y1,x2,y2)
+            #if x1 < previous_delta_hours:
+            #    break
+
+        #assert False
+
         self.previous_step_complete_delta = delta
-        self.append_value(delta)
 
         if self.num_steps_complete % 100 == 0:
             self.info(delta, f'{self.num_steps_complete} steps complete')
@@ -800,6 +835,17 @@ class Simulator:
             )
 
     def calculate_average(self, xs, ys, duration):
+        ts = list(zip(xs, ys))
+        total = 0.0
+        while len(ts) > 0:
+            x1, y1 = ts.pop(0)
+            x2, y2 = ts.pop(0)
+            assert y1 == y2
+            total += (x2 - x1) * y1
+        return total / duration
+
+    def calculate_average_old(self, xs, ys, duration):
+        print('=== WARNING OLD')
         previous_x = 0.0
         previous_y = 0.0
         total = 0.0
@@ -835,6 +881,13 @@ class Simulator:
 
         instances_xs = []
         instances_ys = []
+        self.performance_xs = []
+        self.performance_ys = []
+        self.cost_xs = []
+        self.cost_ys = []
+        self.value_xs = []
+        self.value_ys = []
+
         while len(self.events) > 0:
             event = heapq.heappop(self.events)
 
@@ -845,6 +898,16 @@ class Simulator:
             if duration is not None and delta > duration:
                 delta = duration
                 break
+            
+            # Initialize the number of instances and cost
+            if len(instances_xs) == 0 and delta > 0:
+                num_instances = len(self.spot_instances)
+                instances_xs.append(0)
+                instances_ys.append(num_instances)
+                self.cost_xs.append(0)
+                self.cost_ys.append(
+                    num_instances * self.spot_instance_cost_per_hour
+                )
 
             if kind == EventKind.SPOT_INSTANCE_ADD:
                 self.simulate_spot_instance_add(delta, data)
@@ -873,10 +936,28 @@ class Simulator:
             if delta == next_delta:
                 continue
 
-            instances_xs.append(delta/self.milliseconds_per_hour)
-            instances_ys.append(len(self.spot_instances))
+            previous_num_instances = instances_ys[-1]
+            num_instances = len(self.spot_instances)
+            if previous_num_instances != num_instances:
+                delta_hours = delta / self.milliseconds_per_hour
+                instances_xs.append(delta_hours)
+                instances_ys.append(previous_num_instances)
+                self.cost_xs.append(delta_hours)
+                self.cost_ys.append(previous_num_instances * self.spot_instance_cost_per_hour)
+                instances_xs.append(delta_hours)
+                instances_ys.append(num_instances)
+                self.cost_xs.append(delta_hours)
+                self.cost_ys.append(num_instances * self.spot_instance_cost_per_hour)
 
-        duration_hours = math.ceil(delta / self.milliseconds_per_hour)
+
+        duration_hours_whole = math.ceil(delta / self.milliseconds_per_hour)
+
+        duration_hours = self.performance_xs[-1]
+        num_instances = len(self.spot_instances)
+        instances_xs.append(duration_hours)
+        instances_ys.append(num_instances)
+        self.cost_xs.append(duration_hours)
+        self.cost_ys.append(num_instances * self.spot_instance_cost_per_hour)
 
         # Complete the remaining
         for name, instance in self.spot_instances.items():
@@ -893,6 +974,8 @@ class Simulator:
             )
             previous_removal_time = removal_time
 
+        performance_value_duration_hours = (duration_hours - (self.start_delta / self.milliseconds_per_hour))
+
         result = Result(
             removal_probability = self.removal_probability,
             preemption_mean = statistics.mean(spot_instance_between_removal_times) / self.milliseconds_per_hour if len(spot_instance_between_removal_times) > 0 else 0,
@@ -905,9 +988,9 @@ class Simulator:
             num_fatal_failures = self.num_fatal_failures,
             num_steps_complete = self.num_steps_complete,
             average_instances = self.calculate_average(instances_xs, instances_ys, duration_hours),
-            average_performance = self.calculate_average(self.performance_xs, self.performance_ys, duration_hours),
+            average_performance = self.calculate_average(self.performance_xs, self.performance_ys, performance_value_duration_hours),
             average_cost = self.calculate_average(self.cost_xs, self.cost_ys, duration_hours),
-            average_value = self.calculate_average(self.value_xs, self.value_ys, duration_hours),
+            average_value = self.calculate_average(self.value_xs, self.value_ys, performance_value_duration_hours),
         )
 
         if self.generate_graphs:
@@ -919,28 +1002,28 @@ class Simulator:
             graph(
                 'Time (hours)',
                 instances_xs,
-                duration_hours,
+                duration_hours_whole,
                 '# Instances',
                 instances_ys,
                 max(self.on_demand_num_instances, max(instances_ys)),
                 result.average_instances,
                 on_demand=self.on_demand_num_instances,
                 out=f'instances{pdf_suffix}',
-                show=False,
+                show=True,
             )
 
             # Performance graph
             graph(
                 'Time (hours)',
                 self.performance_xs,
-                duration_hours,
+                duration_hours_whole,
                 'Performance (samples per second)',
                 self.performance_ys,
                 max(self.on_demand_performance, max(self.performance_ys)),
                 result.average_performance,
                 on_demand=self.on_demand_performance,
                 out=f'performance{pdf_suffix}',
-                show=False,
+                show=True,
             )
 
             print('Model:', self.model)
@@ -950,14 +1033,14 @@ class Simulator:
             graph(
                 'Time (hours)',
                 self.cost_xs,
-                duration_hours,
+                duration_hours_whole,
                 'Cost ($ per hour)',
                 self.cost_ys,
                 max(self.on_demand_cost, max(self.cost_ys)),
                 result.average_cost,
                 on_demand=self.on_demand_cost,
                 out=f'cost{pdf_suffix}',
-                show=False,
+                show=True,
             )
 
             print('  Cost:', 'D', self.on_demand_cost, 'B', result.average_cost)
@@ -966,14 +1049,14 @@ class Simulator:
             graph(
                 'Time (hours)',
                 self.value_xs,
-                duration_hours,
+                duration_hours_whole,
                 'Value (performance per cost)',
                 self.value_ys,
                 max(self.on_demand_value, max(self.value_ys)),
                 result.average_value,
                 on_demand=self.on_demand_value,
                 out=f'value{pdf_suffix}',
-                show=False,
+                show=True,
             )
 
             print('  Value:', 'D', self.on_demand_value, 'B', result.average_value)
