@@ -159,6 +159,6 @@ def main(args):
             removal_probability=options.removal_probability,
             generate_graphs=options.generate_graphs,
         )
-        simulator.simulate()
+        simulator.simulate(duration=43_200_000)
     else:
         generate_table()

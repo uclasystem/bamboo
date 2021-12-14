@@ -89,7 +89,8 @@ class Simulator:
                  start_hour=None,
                  generate_addition_probabilities=False,
                  removal_probability=None,
-                 generate_graphs=False):
+                 generate_graphs=False,
+                 model='GPT-2'):
         self.generate_graphs = generate_graphs
 
         self.seed = seed
@@ -191,15 +192,17 @@ class Simulator:
         self.num_stages = 0
 
         self.num_steps_complete = 0
-
         self.num_fatal_failures = 0
         self.num_spot_instance_removals = 0
+
+        self.fallback_slowdown = 1.5
+        self.fallback_event = None
+        self.fallback_handled = False
+
         self.spot_instance_removal_times = []
         self.spot_instance_lifetimes = []
 
         self.previous_step_complete_delta = 0
-        self.tokens_per_iteration = 16_384
-        self.iterations_per_job = 183_106
 
         self.performance_xs = []
         self.performance_ys = []
@@ -216,13 +219,20 @@ class Simulator:
 
         self.status = SystemStatus.STOPPED
 
+        if model == 'GPT-2':
+            self.simulate_step_delta = self.gpt_2_simulate_step_delta
+            self.samples_per_step = 16_384
+            self.steps_per_run = 183_106
+        else:
+            raise NotImplemented()
+
     def generate_probabilities(self):
         probability = {}
         for hour in range(24):
             probability[hour] = self.r.random()
         return probability
 
-    def simulate_step_delta(self):
+    def gpt_2_simulate_step_delta(self):
         # TODO: I need help with this, it shouldn't be constant
         self.step_delta = int(self.time_for_single_pipeline / self.num_pipelines)
 
@@ -315,6 +325,14 @@ class Simulator:
     def create_training_step_complete_event(self, delta, rendezvous_version):
         return self.create_event(
             delta + self.step_delta,
+            EventKind.TRAINING_STEP_COMPLETE,
+            {'rendezvous_version': rendezvous_version}
+        )
+
+    def create_training_step_complete_event_absolute(self, delta,
+                                                     rendezvous_version):
+        return self.create_event(
+            delta,
             EventKind.TRAINING_STEP_COMPLETE,
             {'rendezvous_version': rendezvous_version}
         )
@@ -420,7 +438,6 @@ class Simulator:
             delta + self.spot_instance_creation_time,
             name,
         )
-
         self.append_cost(delta)
 
     def simulate_fatal_failure(self, delta, name):
@@ -470,7 +487,10 @@ class Simulator:
         
         # Re-simulate the step delta now that we lost a node
         if self.status == SystemStatus.RUNNING:
-            self.simulate_step_delta()
+            if self.fallback_event is None:
+                self.fallback_event = (self.num_steps_complete, delta)
+                self.fallback_handled = False
+                self.step_delta = int(self.step_delta * self.fallback_slowdown)
 
     def simulate_rendezvous_start(self, delta, is_global):
         self.status = SystemStatus.RENDEZVOUS
@@ -503,6 +523,8 @@ class Simulator:
             instance = self.spot_instances[name]
             instance.global_id = i
         self.simulate_assign_coordinates()
+        self.fallback_event = None
+        self.fallback_handled = False
         self.rendezvous_version += 1
         self.info(
             delta,
@@ -616,12 +638,25 @@ class Simulator:
         if rendezvous_version != self.rendezvous_version:
             return
 
+        # Handle fallback events
+        if self.fallback_event is not None:
+            event_num_steps_complete, event_delta = self.fallback_event
+            if not self.fallback_handled and event_num_steps_complete == self.num_steps_complete:
+                # The duration we need to add to handle the fallback
+                d = int((delta - event_delta) * (self.fallback_slowdown - 1.0))
+                self.create_training_step_complete_event_absolute(
+                    d + delta,
+                    rendezvous_version
+                )
+                self.fallback_handled = True
+                return
+
         self.num_steps_complete += 1
         # Calculate performance
         time_to_step_complete = delta - self.previous_step_complete_delta
-        tokens_per_second = self.tokens_per_iteration / (time_to_step_complete / self.milliseconds_per_second)
+        samples_per_second = self.samples_per_step / (time_to_step_complete / self.milliseconds_per_second)
         self.performance_xs.append(delta / self.milliseconds_per_hour)
-        self.performance_ys.append(tokens_per_second)
+        self.performance_ys.append(samples_per_second)
         self.previous_step_complete_delta = delta
 
         if self.num_steps_complete % 100 == 0:
@@ -654,17 +689,11 @@ class Simulator:
         start = start.replace(minute=0, second=0, microsecond=0)
         if self.start_hour is not None:
             start = start.replace(hour=self.start_hour)
-        #duration = datetime.timedelta(hours=2) // self.millisecond
-        #duration = datetime.timedelta(days=2) // self.millisecond
-        # duration_milliseconds = duration // self.millisecond
-        # end = start + duration
 
         logger.info(f'Starting at {start}')
 
         logger.info(f'Generating spot instance events...')
         self.generate_spot_instance_initial_events(start)
-        #logger.info(f'Generating spot instance events...')
-        #self.generate_spot_instance_events(start, duration)
 
         instances_xs = []
         instances_ys = []
@@ -674,7 +703,6 @@ class Simulator:
             kind = event.kind
             delta = event.delta
             data = event.data
-            # print('HELLO?', delta, type(delta))
 
             if duration is not None and delta > duration:
                 delta = duration
@@ -698,7 +726,7 @@ class Simulator:
                 raise ValueError(f'Unknown kind: {kind}')
 
             # We're done our training
-            if duration is None and self.num_steps_complete == self.iterations_per_job:
+            if duration is None and self.num_steps_complete == self.steps_per_run:
                 break
 
             # We still need to process more events for this delta
@@ -752,9 +780,9 @@ class Simulator:
             on_demand_num_pipelines = self.spot_instance_desired_capacity // self.num_stages_minimum
             on_demand_num_instances = on_demand_num_pipelines * self.on_demand_num_stages
             on_demand_time_to_step_complete = self.time_for_single_pipeline / on_demand_num_pipelines
-            on_demand_tokens_per_second = self.tokens_per_iteration / (on_demand_time_to_step_complete / self.milliseconds_per_second)
+            on_demand_samples_per_second = self.samples_per_step / (on_demand_time_to_step_complete / self.milliseconds_per_second)
             on_demand_cost_per_hour = self.cost_dollars_per_hour_per_instance / self.on_demand_price_factor * on_demand_num_instances
-            on_demand_value = on_demand_tokens_per_second / on_demand_cost_per_hour
+            on_demand_value = on_demand_samples_per_second / on_demand_cost_per_hour
 
             # Instances graph
             graph(
@@ -767,7 +795,7 @@ class Simulator:
                 result.average_instances,
                 on_demand=on_demand_num_instances,
                 out=f'instances{pdf_suffix}',
-                show=True,
+                show=False,
             )
 
             # Performance graph
@@ -775,13 +803,13 @@ class Simulator:
                 'Time (hours)',
                 self.performance_xs,
                 duration_hours,
-                'Performance (tokens per second)',
+                'Performance (samples per second)',
                 self.performance_ys,
-                max(on_demand_tokens_per_second, max(self.performance_ys)),
+                max(on_demand_samples_per_second, max(self.performance_ys)),
                 result.average_performance,
-                on_demand=on_demand_tokens_per_second,
+                on_demand=on_demand_samples_per_second,
                 out=f'performance{pdf_suffix}',
-                show=True,
+                show=False,
             )
 
             # Cost graph
@@ -795,7 +823,7 @@ class Simulator:
                 result.average_cost,
                 on_demand=on_demand_cost_per_hour,
                 out=f'cost{pdf_suffix}',
-                show=True,
+                show=False,
             )
 
             # Value graph
