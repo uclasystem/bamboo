@@ -908,16 +908,6 @@ class Simulator:
             if duration is not None and delta > duration:
                 delta = duration
                 break
-            
-            # Initialize the number of instances and cost
-            if len(instances_xs) == 0 and delta > 0:
-                num_instances = len(self.spot_instances)
-                instances_xs.append(0)
-                instances_ys.append(num_instances)
-                self.cost_xs.append(0)
-                self.cost_ys.append(
-                    num_instances * self.spot_instance_cost_per_hour
-                )
 
             if kind == EventKind.SPOT_INSTANCE_ADD:
                 self.simulate_spot_instance_add(delta, data)
@@ -946,7 +936,16 @@ class Simulator:
             if delta == next_delta:
                 continue
 
-            if len(instances_ys) > 0:
+            # Initialize the number of instances and cost
+            if len(instances_xs) == 0 and delta > 0:
+                num_instances = len(self.spot_instances)
+                instances_xs.append(0)
+                instances_ys.append(num_instances)
+                self.cost_xs.append(0)
+                self.cost_ys.append(
+                    num_instances * self.spot_instance_cost_per_hour
+                )
+            elif len(instances_xs) > 0:
                 previous_num_instances = instances_ys[-1]
                 num_instances = len(self.spot_instances)
                 if previous_num_instances != num_instances:
