@@ -216,9 +216,9 @@ class Simulator:
             self.local_rendezvous_timeout_delta = 20_000 # milliseconds
             self.num_stages_target = 8
 
-            self.on_demand_num_instances = 3 * 5
+            self.on_demand_num_instances = 4 * 5
             self.on_demand_cost = self.on_demand_num_instances * self.on_demand_cost_per_hour
-            self.on_demand_performance = self.samples_per_step / 4.25
+            self.on_demand_performance = self.samples_per_step / 3.37
             self.on_demand_value = self.on_demand_performance / self.on_demand_cost
         elif model == 'BERT':
             self.samples_per_step = 264
@@ -228,9 +228,9 @@ class Simulator:
             self.local_rendezvous_timeout_delta = 20_000 # milliseconds
             self.num_stages_target = 8
 
-            self.on_demand_num_instances = 3 * 5
+            self.on_demand_num_instances = 4 * 5
             self.on_demand_cost = self.on_demand_num_instances * self.on_demand_cost_per_hour
-            self.on_demand_performance = self.samples_per_step / 3.05
+            self.on_demand_performance = self.samples_per_step / 2.51
             self.on_demand_value = self.on_demand_performance / self.on_demand_cost
         elif model == 'ResNet':
             self.samples_per_step = 384
@@ -303,7 +303,9 @@ class Simulator:
             raise NotImplementedError
 
     def bert_simulate_step_delta(self):
-        if self.num_pipelines == 3 and self.num_stages == 8:
+        if self.num_pipelines == 4 and self.num_stages == 8:
+            self.step_delta = 1_770 # milliseconds
+        elif self.num_pipelines == 3 and self.num_stages == 8:
             self.step_delta = 2_300 # milliseconds
         elif self.num_pipelines == 2 and self.num_stages == 8:
             self.step_delta = 3_100 # milliseconds
@@ -1036,7 +1038,7 @@ class Simulator:
                 result.average_performance,
                 on_demand=self.on_demand_performance,
                 out=f'performance{pdf_suffix}',
-                show=False,
+                show=True,
             )
 
             print('Model:', self.model)
@@ -1053,7 +1055,7 @@ class Simulator:
                 result.average_cost,
                 on_demand=self.on_demand_cost,
                 out=f'cost{pdf_suffix}',
-                show=False,
+                show=True,
             )
 
             print('  Cost:', 'D', self.on_demand_cost, 'B', result.average_cost)
@@ -1069,7 +1071,7 @@ class Simulator:
                 result.average_value,
                 on_demand=self.on_demand_value,
                 out=f'value{pdf_suffix}',
-                show=False,
+                show=True,
             )
 
             print('  Value:', 'D', self.on_demand_value, 'B', result.average_value)
