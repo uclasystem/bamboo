@@ -209,6 +209,7 @@ class Simulator:
 
         if model == 'GPT-2':
             self.samples_per_step = 264
+            self.steps_per_run = 183_106
 
             self.spot_instance_desired_capacity = 24
             self.simulate_step_delta = self.gpt_2_simulate_step_delta
