@@ -14,7 +14,5 @@ RUN pip install colorama
 ENV PATH=$VIRTUAL_ENV/bin:/workspace/external/deepspeed/bin:$PATH
 ENV PYTHONPATH=/workspace:/workspace/external/deepspeed
 
-RUN touch /workspace/VERSION /workspace/VERSION.out
 COPY . /workspace
-RUN rm /workspace/VERSION /workspace/VERSION.out
-COPY VERSION.out /workspace/VERSION
+RUN mv /workspace/.dockerversion /workspace/VERSION

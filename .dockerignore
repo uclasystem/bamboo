@@ -3,11 +3,14 @@
 /k8s/
 /venv/
 __pycache__/
-/settings.py
 
-/.git/
-/.gitignore/
-/.gitmodules/
+.git/
+.gitignore
+.gitmodules
 
 Dockerfile
-/.dockerignore
+.dockerignore
+
+/build.sh
+/VERSION
+/version.sh

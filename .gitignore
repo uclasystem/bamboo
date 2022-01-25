@@ -3,5 +3,6 @@
 /venv/
 __pycache__/
 /settings.py
-/VERSION.out
 *.pyc
+
+/.dockerversion
