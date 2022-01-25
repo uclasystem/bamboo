@@ -3,11 +3,14 @@ import subprocess
 
 def get_version():
     from project_pactum import BASE_DIR
-    return subprocess.run([os.path.join(BASE_DIR, 'version.sh')],
-                          stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                          check=True,
-                          encoding='utf-8').stdout.strip()
-
+    version_script_path = os.path.join(BASE_DIR, 'version.sh')
+    if os.path.exists(version_script_path)
+        return subprocess.run([version_script_path],
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                              check=True,
+                              encoding='utf-8').stdout.strip()
+    with open(os.path.join(BASE_DIR, 'VERSION'), 'r') as f:
+        return f.read().strip()
 
 def get_python_version(version):
     from re import match
