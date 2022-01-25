@@ -7,6 +7,3 @@
 [submodule "external/apex"]
 	path = external/apex
 	url = https://github.com/NVIDIA/apex
-[submodule "external/elastic"]
-	path = external/elastic
-        url = git@github.com:eyolfson/project-pactum-elastic.git
