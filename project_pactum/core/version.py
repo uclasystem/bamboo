@@ -4,7 +4,7 @@ import subprocess
 def get_version():
     from project_pactum import BASE_DIR
     version_script_path = os.path.join(BASE_DIR, 'version.sh')
-    if os.path.exists(version_script_path)
+    if os.path.exists(version_script_path):
         return subprocess.run([version_script_path],
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                               check=True,
