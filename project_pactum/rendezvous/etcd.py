@@ -217,6 +217,9 @@ class EtcdRendezvousHandler(RendezvousHandler):
     def create_lock(self, lock_name):
         return self._rdzv_impl.create_lock(lock_name)
 
+    def stop_keep_alive(self):
+        self._rdzv_impl.stop_keep_alive()
+
     def next_rendezvous(self, previous_global_rank=-1):
         if isinstance(previous_global_rank, str):
             previous_global_rank = int(previous_global_rank)
@@ -415,6 +418,13 @@ class EtcdRendezvous(object):
 
     def __del__(self):
         # TODO: look into using weakref here instead.
+        if self._lease_run_id_stop is not None:
+            self._lease_run_id_stop.set()
+
+        if self._lease_this_rank_stop is not None:
+            self._lease_this_rank_stop.set()
+
+    def stop_keep_alive(self):
         if self._lease_run_id_stop is not None:
             self._lease_run_id_stop.set()
 
