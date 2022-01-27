@@ -14,6 +14,14 @@ from colorama import Fore
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
+global should_stop, killed
+should_stop = False
+killed = False
+def sig_handler(signum, frame):
+    print(Fore.LIGHTCYAN_EX, 'Signal hander called with signal', signum, Fore.RESET)
+    global should_stop
+    should_stop = True
+
 from torch.distributed.elastic.agent.server import (
     RunResult,
     SimpleElasticAgent,
@@ -32,6 +40,7 @@ from torch.distributed.elastic.agent.server.api import WorkerSpec
 
 DEFAULT_ROLE = "default"
 log = get_logger()
+
 
 class ProjectPactumAgent(SimpleElasticAgent):
 
@@ -144,6 +153,9 @@ class ProjectPactumAgent(SimpleElasticAgent):
         monitor_interval = spec.monitor_interval
         rdzv_handler = spec.rdzv_handler
 
+        signal.signal(signal.SIGTERM, sig_handler)
+        start = time.time()
+
         while True:
             assert self._worker_group.state != WorkerState.INIT
             time.sleep(monitor_interval)
@@ -202,6 +214,15 @@ class ProjectPactumAgent(SimpleElasticAgent):
                 #         f"will restart worker group"
                 #     )
                 #     self._restart_workers(self._worker_group)
+                global should_stop
+                if should_stop:
+                    for pid in self._pcontext.pids().values():
+                        os.kill(pid, signal.SIGTERM)
+                    should_stop = False
+
+                if not killed and time.time() - start > 37:
+                    os.kill(os.getpid(), signal.SIGTERM)
+
             else:
                 raise Exception(f"[{role}] Worker group in {state.name} state")
 
@@ -286,9 +307,6 @@ class ProjectPactumAgent(SimpleElasticAgent):
                 for local_rank, failure in result.failures.items():
                     worker = worker_group.workers[local_rank]
                     worker_failures[worker.global_rank] = failure
-                    print(Fore.RED, f'FAILURES!!!! {failure.message}', Fore.RESET)
-
-                print(Fore.RED, f'WORKER FAILURES {worker_failures}', Fore.RESET)
 
                 return RunResult(
                     state=WorkerState.FAILED,

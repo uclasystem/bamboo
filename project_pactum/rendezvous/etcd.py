@@ -206,7 +206,10 @@ class EtcdRendezvousHandler(RendezvousHandler):
         self._rdzv_impl.write(key, value)
 
     def should_reconfigure(self, global_steps):
-        return self._rdzv_impl.should_reconfigure(global_steps)
+        if self._rdzv_impl is not None:
+            return self._rdzv_impl.should_reconfigure(global_steps)
+
+        return False
 
     def get_global_decision(self):
         return self._rdzv_impl.get_global_decision()
@@ -332,6 +335,11 @@ class EtcdRendezvousHandler(RendezvousHandler):
         store = self._rdzv_impl.setup_kv_store(rdzv_version)
 
         return store
+
+    def get_current_state(self):
+        _, state = self._rdzv_impl.get_rdzv_state()
+
+        return state
 
     def update_coordinates(self, rank, coordinates):
         self._rdzv_impl.update_coordinates(rank, coordinates)
