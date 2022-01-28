@@ -7,6 +7,7 @@ import signal
 import shutil
 import sys
 import tempfile
+import threading
 import time
 
 from colorama import Fore
@@ -14,10 +15,10 @@ from colorama import Fore
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
+from .get_notices import check_for_preemption
+
 global should_stop
-global killed
 should_stop = False
-killed = False
 def sig_handler(signum, frame):
     print(Fore.LIGHTCYAN_EX, 'Signal hander called with signal', signum, Fore.RESET)
     global should_stop
@@ -59,6 +60,12 @@ class ProjectPactumAgent(SimpleElasticAgent):
         rdzv_run_id = spec.rdzv_handler.get_run_id()
         self._log_dir = self._make_log_dir(log_dir, rdzv_run_id)
         self._extra_env = extra_env
+
+        preemption_checker = threading.Thread(
+            target=check_for_preemption
+        )
+        preemption_checker.daemon = True
+        preemption_checker.start()
 
         # Register the SIGTERM (15) signal to kill the workers
         signal.signal(signal.SIGTERM, self.signal)
@@ -155,7 +162,6 @@ class ProjectPactumAgent(SimpleElasticAgent):
         rdzv_handler = spec.rdzv_handler
 
         global should_stop
-        global killed
         signal.signal(signal.SIGTERM, sig_handler)
         start = time.time()
 
@@ -221,10 +227,6 @@ class ProjectPactumAgent(SimpleElasticAgent):
                     for pid in self._pcontext.pids().values():
                         os.kill(pid, signal.SIGTERM)
                     should_stop = False
-                    killed = True
-
-                if not killed and time.time() - start > 37:
-                    os.kill(os.getpid(), signal.SIGTERM)
 
             else:
                 raise Exception(f"[{role}] Worker group in {state.name} state")
