@@ -61,14 +61,13 @@ class ProjectPactumAgent(SimpleElasticAgent):
         self._log_dir = self._make_log_dir(log_dir, rdzv_run_id)
         self._extra_env = extra_env
 
+        # Register the SIGTERM (15) signal to kill the workers
+        signal.signal(signal.SIGTERM, self._drain_preempting_workers)
         preemption_checker = threading.Thread(
             target=check_for_preemption
         )
         preemption_checker.daemon = True
         preemption_checker.start()
-
-        # Register the SIGTERM (15) signal to kill the workers
-        signal.signal(signal.SIGTERM, self.signal)
 
     def signal(self, signum, frame):
         role = self._worker_group.spec.role
@@ -161,8 +160,6 @@ class ProjectPactumAgent(SimpleElasticAgent):
         monitor_interval = spec.monitor_interval
         rdzv_handler = spec.rdzv_handler
 
-        global should_stop
-        signal.signal(signal.SIGTERM, sig_handler)
         start = time.time()
 
         while True:
@@ -223,13 +220,12 @@ class ProjectPactumAgent(SimpleElasticAgent):
                 #         f"will restart worker group"
                 #     )
                 #     self._restart_workers(self._worker_group)
-                if should_stop:
-                    for pid in self._pcontext.pids().values():
-                        os.kill(pid, signal.SIGTERM)
-                    should_stop = False
-
             else:
                 raise Exception(f"[{role}] Worker group in {state.name} state")
+
+    def _drain_preempting_workers(self):
+        for pid in self._pcontext.pids().values():
+            os.kill(pid, signal.SIGTERM)
 
     def _assign_worker_ranks(
         self, store, group_rank: int, group_world_size: int, spec: WorkerSpec,

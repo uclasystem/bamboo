@@ -29,12 +29,11 @@ def check_for_preemption():
         http_code = response.status_code
 
         if http_code == 401:
-            print('Refreshing auth token')
             token = get_auth_token(30)
         elif http_code == 200:
-            print('SENDING SIGTERM SIGNAL')
             os.kill(os.getpid(), signal.SIGTERM)
+            break
         else:
-            ...
+            pass
 
-        time.sleep(5)
+        time.sleep(3)
