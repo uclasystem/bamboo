@@ -1,4 +1,4 @@
-FROM pytorch/pytorch:1.9.0-cuda11.1-cudnn8-devel
+FROM pytorch/pytorch:1.10.0-cuda11.3-cudnn8-devel
 RUN apt-get update && apt-get install -y libaio-dev
 
 ENV VIRTUAL_ENV=/workspace/venv
@@ -9,7 +9,6 @@ RUN cd /workspace/external/apex && pip install -v --disable-pip-version-check --
 
 COPY requirements.txt /workspace/requirements.txt
 RUN pip install -U pip && pip install -r /workspace/requirements.txt
-RUN pip install colorama
 
 ENV PATH=$VIRTUAL_ENV/bin:/workspace/external/deepspeed/bin:$PATH
 ENV PYTHONPATH=/workspace:/workspace/external/deepspeed
