@@ -1,11 +1,9 @@
 import argparse
-import functools
-import importlib
 import logging
-import pkgutil
-import subprocess
 
 import project_pactum
+
+from colorama import Fore, Style
 
 logger = logging.getLogger(__name__)
 
@@ -26,27 +24,10 @@ def parse(args):
 	parser = argparse.ArgumentParser(prog='project_pactum',
 	                                 description='Project Pactum')
 
-	from project_pactum import VERSION
-	parser.add_argument('--version', action='version',
-	                    version='Project Pactum {}'.format(VERSION))
-
-	subparsers = parser.add_subparsers(metavar='command', dest='command_name')
-
-	for module_info in pkgutil.iter_modules(project_pactum.__path__):
-		if not module_info.ispkg:
-			continue
-		name = module_info.name
-		if name in ['core', 'agent', 'daemon', 'deepspeed', 'run']:
-			continue
-		full_module_name = 'project_pactum.{}.command'.format(name)
-		try:
-			module = importlib.import_module(full_module_name)
-		except ModuleNotFoundError as e:
-			logger.error(f'{full_module_name} module missing')
-			raise(e)
-
-		subparser = subparsers.add_parser(module_info.name, help=module.HELP)
-		module.add_arguments(subparser)
+	parser.add_argument(
+		'--version', action='version',
+		version=f'{Fore.BLUE}{Style.BRIGHT}Bamboo{Style.RESET_ALL}'
+		        f' {Style.BRIGHT}{project_pactum.__version__}{Style.RESET_ALL}')
 
 	return parser.parse_args(args)
 
@@ -74,22 +55,3 @@ def setup_logging():
 	logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 
 	logging.getLogger('matplotlib').setLevel(logging.WARNING)
-
-def setup_settings():
-	from project_pactum.core.settings import Settings
-	settings = Settings()
-	setattr(project_pactum, 'settings', settings)
-
-@functools.wraps(subprocess.run)
-def run(args, **kwargs):
-	logger = logging.getLogger('project_pactum.run')
-	logger.debug(' '.join(args))
-	p = subprocess.run(args, **kwargs)
-	return p
-
-def setup(options):
-	setup_settings()
-
-	if options.command_name == 'dataset':
-		from project_pactum.dataset.base import setup_datasets
-		setup_datasets()
