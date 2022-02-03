@@ -1,4 +1,7 @@
 import argparse
+import colorama
+
+import project_pactum
 
 from project_pactum.run.api import (
     elastic_launch,
@@ -11,9 +14,11 @@ def parse(args):
     parser = argparse.ArgumentParser(prog='project_pactum.run',
 	                             description='Project Pactum Run')
 
-    from project_pactum import VERSION
-    parser.add_argument('--version', action='version',
-	                version='Project Pactum {}'.format(VERSION))
+    parser.add_argument(
+		'--version', action='version',
+		version=f'{Fore.BLUE}{Style.BRIGHT}Bamboo{Style.RESET_ALL}'
+		        f' {Style.BRIGHT}{project_pactum.__version__}{Style.RESET_ALL}')
+
     parser.add_argument('--project-pactum', action='store_true')
     parser.add_argument('--max-pipe-parallel-size', type=int)
     parser.add_argument('--default-num-stages', '-dps', type=int)
@@ -234,5 +239,8 @@ def run(args):
     )(*cmd_args)
 
 def main(args):
+    from project_pactum.core.base import setup_logging
+
+    setup_logging()
     options = parse(args)
     run(options)
