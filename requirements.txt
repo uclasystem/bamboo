@@ -3,6 +3,5 @@ colorama
 ninja
 packaging
 pybind11
-python-daemon
 regex
 tensorboardX
