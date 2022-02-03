@@ -24,6 +24,3 @@ def main(args):
 	setup_logging()
 
 	options = parse(args)
-
-	if 'command' in options:
-		options.command(options)

@@ -1,7 +1,8 @@
 import argparse
-import colorama
 
 import project_pactum
+
+from colorama import Fore, Style
 
 from project_pactum.run.api import (
     elastic_launch,
