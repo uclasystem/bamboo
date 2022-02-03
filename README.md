@@ -1,13 +1,13 @@
-# Project Pactum
+# Bamboo
 
-TODO.
+Afforable deep learning through resilient preemptible instances.
 
 ## Setup
 
 Ensure you have the following requirements:
 
-- Python 3.8
-- TensorFlow 2.3
+- Python 3.7
+- PyTorch 1.10.0
 
 Documentation has the following requirements:
 
@@ -40,9 +40,3 @@ build and run the following:
 This command will recompile the LaTeX file as many times as needed and open it
 in your preferred PDF viewer. For modifications keep this command running, and
 the document recompiles automatically.
-
-## Dependencies
-
-For Arch Linux you need to install:
-
-    sudo pacman -S python-daemon python-ninja python-psutil
