@@ -1,5 +1,6 @@
 import argparse
 import logging
+import time
 
 import project_pactum
 
@@ -9,15 +10,19 @@ logger = logging.getLogger(__name__)
 
 class ProjectPactumFormatter(logging.Formatter):
 
+	def __init__(self):
+		self.created = time.time()
+
 	def format(self, record):
+		reltime = record.created - self.created
 		COLORS = {
 			logging.DEBUG: 35,
 			logging.INFO: 36,
 			logging.WARNING: 33,
 			logging.ERROR: 31,
 		}
-		fmt = '\x1B[1;{color}m%(name)s %(levelname)s\x1B[m \x1B[{color}m%(message)s\x1B[m'
-		formatter = logging.Formatter(fmt.format(color=COLORS[record.levelno]))
+		fmt = '\x1B[1;{color}m[{reltime:.3f} %(levelname)s %(name)s]\x1B[m \x1B[{color}m%(message)s\x1B[m'
+		formatter = logging.Formatter(fmt.format(color=COLORS[record.levelno], reltime=reltime))
 		return formatter.format(record)
 
 def parse(args):

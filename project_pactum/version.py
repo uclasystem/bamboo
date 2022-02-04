@@ -1,9 +1,6 @@
 import os
 import subprocess
 
-import logging
-logger = logging.getLogger(__name__)
-
 def get_version():
     from project_pactum import BASE_DIR
     version_script_path = os.path.join(BASE_DIR, 'version.sh')

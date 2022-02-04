@@ -24,3 +24,7 @@ def main(args):
 	setup_logging()
 
 	options = parse(args)
+
+	import logging
+	logger = logging.getLogger(__name__)
+	logger.debug('ok')
