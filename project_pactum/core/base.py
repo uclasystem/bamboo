@@ -1,5 +1,6 @@
 import argparse
 import logging
+import os
 import time
 
 import project_pactum
@@ -40,6 +41,10 @@ def setup_logging():
 	stream_handler = logging.StreamHandler()
 	stream_handler.setFormatter(ProjectPactumFormatter())
 	logging.basicConfig(level=logging.DEBUG, handlers=[stream_handler])
+
+	if 'PROJECT_PACTUM_LOGGING_WARNING' in os.environ:
+		for p in os.environ['PROJECT_PACTUM_LOGGING_WARNING'].split(','):
+			logging.getLogger(p).setLevel(logging.WARNING)
 
 	logging.getLogger('botocore.auth').setLevel(logging.WARNING)
 	logging.getLogger('botocore.client').setLevel(logging.WARNING)
