@@ -47,6 +47,8 @@ log.propagate = False
 log.setLevel(logging.INFO)
 log.addHandler(_log_handler)
 
+logger = logging.getLogger('project_pactum.etcd')
+
 GlobalInfo = collections.namedtuple(
     'GlobalInfo',
     ['rank', 'previous_coordinates', 'active_coordinates']
@@ -63,15 +65,13 @@ class TooFewNodesException(Exception):
 class EtcdRendezvousRetryableFailure(Exception):
     pass
 
-
 # Similar to retryable failure, but the new state we observed suggests we
 # can re-try immediately, i.e. without a need for "safety delay".
 class EtcdRendezvousRetryImmediately(Exception):
     pass
 
-
 # Default timeout for the rendezvous.
-_DEFAULT_TIMEOUT: int = 600  # 10 minutes
+_DEFAULT_TIMEOUT: int = 60  # 1 minute (was 10 minutes)
 
 # Additional waiting time after reaching the minimum number of nodes
 # in case the rendezvous is elastic (min != max).
@@ -199,6 +199,7 @@ class EtcdRendezvousHandler(RendezvousHandler):
     def __del__(self):
         # TODO: look into using weakref here instead.
         del self._rdzv_impl
+
     def get_backend(self) -> str:
         return "etcd"
 
@@ -1534,6 +1535,8 @@ def create_rdzv_handler(params: RendezvousParameters) -> RendezvousHandler:
         cert - client cert to access etcd, only makes sense with https.
         key - client key to access etcd, only makes sense with https.
     """
+    logger.info('Start create_rdzv_handler')
+
     client = _create_etcd_client(params)
 
     etcd_prefix = params.get("etcd_prefix", "/torchelastic/p2p")
@@ -1547,4 +1550,5 @@ def create_rdzv_handler(params: RendezvousParameters) -> RendezvousHandler:
         timeout=params.get_as_int("timeout", _DEFAULT_TIMEOUT),
         last_call_timeout=params.get_as_int("last_call_timeout", _DEFAULT_LAST_CALL_TIMEOUT),
     )
+    logger.info('End create_rdzv_handler')
     return EtcdRendezvousHandler(rdzv_impl=rdzv)
