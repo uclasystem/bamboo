@@ -10,8 +10,18 @@ RUN cd /workspace/external/apex && pip install -v --disable-pip-version-check --
 COPY requirements.txt /workspace/requirements.txt
 RUN pip install -U pip && pip install -r /workspace/requirements.txt
 
+COPY external/deepspeed/setup.py /workspace/external/deepspeed/setup.py
+COPY external/deepspeed/README.md /workspace/external/deepspeed/README.md
+COPY external/deepspeed/version.txt /workspace/external/deepspeed/version.txt
+RUN mkdir -p /workspace/external/deepspeed/deepspeed /workspace/external/deepspeed/bin
+COPY external/deepspeed/csrc /workspace/external/deepspeed/csrc
+COPY external/deepspeed/op_builder /workspace/external/deepspeed/op_builder
+COPY external/deepspeed/requirements /workspace/external/deepspeed/requirements
+
 ENV PATH=$VIRTUAL_ENV/bin:/workspace/external/deepspeed/bin:$PATH
 ENV PYTHONPATH=/workspace:/workspace/external/deepspeed
+
+RUN cd /workspace/external/deepspeed && DS_BUILD_OPS=1 python setup.py build_ext
 
 COPY . /workspace
 RUN mv /workspace/.dockerversion /workspace/VERSION
