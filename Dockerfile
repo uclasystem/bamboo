@@ -22,6 +22,7 @@ ENV PATH=$VIRTUAL_ENV/bin:/workspace/external/deepspeed/bin:$PATH
 ENV PYTHONPATH=/workspace:/workspace/external/deepspeed
 
 RUN cd /workspace/external/deepspeed && DS_BUILD_OPS=1 python setup.py build_ext
+RUN cd /workspace/external/deepspeed/build/lib.linux-x86_64-3.7 && find . -name '*.so' -exec install -Dm644 {} /workspace/external/deepspeed/{} \;
 
 COPY . /workspace
 RUN mv /workspace/.dockerversion /workspace/VERSION
