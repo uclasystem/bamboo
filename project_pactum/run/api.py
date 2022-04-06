@@ -298,7 +298,7 @@ def launch_agent(
         if config.project_pactum:
             from project_pactum.agent import ProjectPactumAgent
 
-            assert config.rdzv_backend == 'etcd'
+            assert config.rdzv_backend == 'etcd' or config.rdzv_backend == 'etcd-v2'
 
             spec = WorkerSpec(
                 role=config.role,
