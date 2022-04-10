@@ -854,7 +854,6 @@ class EtcdRendezvous(object):
     def update_coordinates(self, rank, coordinates):
         _, state = self.get_rdzv_state()
         version = state["version"]
-
         result = self.client.get(self.get_path(f"/rdzv/v_{version}/rank_{rank}_coordinates"))
         result.value = json.dumps(coordinates)
         self.client.update(result)
@@ -1068,11 +1067,10 @@ class EtcdRendezvous(object):
                 should_reconfigure = True
                 break
             elif len(coordinates) == 2:
-                if str(rank) in failures:
-                    if failures[str(rank)] == global_step:
-                        print("SHADOW NODE GOING TO BE PREEMPTED. RECONFIGURING...")
-                        should_reconfigure = True
-                        break
+                if failures.get(str(rank), -1) == global_step:
+                    print("Shadow node going to be preempted. Reconfiguring...")
+                    should_reconfigure = True
+                    break
                 num_workers_overloaded += 1
 
         if num_workers_overloaded > 0 and num_workers_waiting >= num_workers_overloaded:
