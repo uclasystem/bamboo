@@ -25,7 +25,7 @@ cmd="""export PROJECT_PACTUM_LOGGING_WARNING='etcd.client,etcd.lock,torch.distri
 	--default-num-stages=${NUM_STAGES} \
 	${MODEL}.py \
 	--backend=nccl \
-	--redundancy_level=0 \
+	--redundancy_level=1 \
 	${@:5} \
 	--deepspeed \
 	--deepspeed_config ${MODEL}.json"""

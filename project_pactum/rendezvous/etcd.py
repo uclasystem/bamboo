@@ -19,7 +19,9 @@ from typing import Optional
 import re
 import traceback
 from contextlib import closing
-from colorama.ansi import Fore
+from colorama import Fore
+
+from datetime import datetime
 
 from torch.distributed.elastic import rendezvous
 from torch.serialization import default_restore_location
@@ -206,9 +208,9 @@ class EtcdRendezvousHandler(RendezvousHandler):
     def write(self, key, value):
         self._rdzv_impl.write(key, value)
 
-    def should_reconfigure(self, global_steps):
+    def should_reconfigure(self, global_steps, failures):
         if self._rdzv_impl is not None:
-            return self._rdzv_impl.should_reconfigure(global_steps)
+            return self._rdzv_impl.should_reconfigure(global_steps, failures)
 
         return False
 
@@ -852,6 +854,7 @@ class EtcdRendezvous(object):
     def update_coordinates(self, rank, coordinates):
         _, state = self.get_rdzv_state()
         version = state["version"]
+
         result = self.client.get(self.get_path(f"/rdzv/v_{version}/rank_{rank}_coordinates"))
         result.value = json.dumps(coordinates)
         self.client.update(result)
@@ -1049,7 +1052,8 @@ class EtcdRendezvous(object):
             rank_coordinates[rank] = coordinates
         return rank_coordinates
 
-    def decide_reconfigure(self, global_step, global_steps_key, active_version, state):
+    def decide_reconfigure(self, global_step, global_steps_key, failures, active_version, state):
+        print(Fore.LIGHTYELLOW_EX, 'FAILURES!!!', failures, Fore.RESET)
         should_reconfigure = False
 
         version = state["version"]
@@ -1062,11 +1066,18 @@ class EtcdRendezvous(object):
         for rank, coordinates in rank_coordinates.items():
             if len(coordinates) > 2:
                 should_reconfigure = True
+                break
             elif len(coordinates) == 2:
+                if str(rank) in failures:
+                    if failures[str(rank)] == global_step:
+                        print("SHADOW NODE GOING TO BE PREEMPTED. RECONFIGURING...")
+                        should_reconfigure = True
+                        break
                 num_workers_overloaded += 1
 
         if num_workers_overloaded > 0 and num_workers_waiting >= num_workers_overloaded:
-            should_reconfigure = True
+            pass
+            #should_reconfigure = True
 
         try:
             num_pipelines = int(state['num_pipelines'])
@@ -1078,7 +1089,8 @@ class EtcdRendezvous(object):
             # I cannot remove an overloaded node, or the node that now has no
             # redundancy
             if num_workers_overloaded > 0 and (2 * num_workers_overloaded / num_active_workers) > 0.05:
-                should_reconfigure = True
+                pass
+                #should_reconfigure = True
 
             potential_num_pipelines = (num_active_workers + num_workers_waiting - num_workers_overloaded) // num_stages
             if potential_num_pipelines > num_pipelines:
@@ -1105,7 +1117,7 @@ class EtcdRendezvous(object):
 
         return should_reconfigure
 
-    def should_reconfigure(self, global_steps):
+    def should_reconfigure(self, global_steps, failures):
 
         global_steps_key = self.get_path(f"/rdzv/global_steps_{global_steps}")
 
@@ -1130,7 +1142,7 @@ class EtcdRendezvous(object):
 
             # Try to make the decision, if it fails just retry
             try:
-                return self.decide_reconfigure(global_steps, global_steps_key, active_version, state)
+                return self.decide_reconfigure(global_steps, global_steps_key, failures, active_version, state)
             except:
                 pass
 
