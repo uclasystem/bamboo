@@ -208,7 +208,7 @@ class EtcdRendezvousHandler(RendezvousHandler):
     def write(self, key, value):
         self._rdzv_impl.write(key, value)
 
-    def should_reconfigure(self, global_steps, failures):
+    def should_reconfigure(self, global_steps, failures={}):
         if self._rdzv_impl is not None:
             return self._rdzv_impl.should_reconfigure(global_steps, failures)
 
