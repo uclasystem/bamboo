@@ -347,11 +347,17 @@ class EtcdRendezvousHandler(RendezvousHandler):
     def update_coordinates(self, rank, coordinates):
         self._rdzv_impl.update_coordinates(rank, coordinates)
 
+    def update_coordinates_for_version(self, version, rank, coordinates):
+        self._rdzv_impl.update_coordinates_for_version(version, rank, coordinates)
+
     def previous_version_exists(self):
         return self._rdzv_impl.previous_version_exists()
 
     def get_previous_state(self):
         return self._rdzv_impl.get_previous_state()
+
+    def get_rank_coordinates_for_version(self, state, version):
+        return self._rdzv_impl.get_rank_coordinates_for_version(state, version)
 
     def get_run_id(self) -> str:
         return self._rdzv_impl._run_id
@@ -854,6 +860,11 @@ class EtcdRendezvous(object):
     def update_coordinates(self, rank, coordinates):
         _, state = self.get_rdzv_state()
         version = state["version"]
+        result = self.client.get(self.get_path(f"/rdzv/v_{version}/rank_{rank}_coordinates"))
+        result.value = json.dumps(coordinates)
+        self.client.update(result)
+
+    def update_coordinates_for_version(self, version, rank, coordinates):
         result = self.client.get(self.get_path(f"/rdzv/v_{version}/rank_{rank}_coordinates"))
         result.value = json.dumps(coordinates)
         self.client.update(result)
