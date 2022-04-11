@@ -1063,7 +1063,6 @@ class EtcdRendezvous(object):
         return rank_coordinates
 
     def decide_reconfigure(self, global_step, global_steps_key, failures, active_version, state):
-        print(Fore.LIGHTYELLOW_EX, 'FAILURES!!!', failures, Fore.RESET)
         should_reconfigure = False
 
         version = state["version"]
