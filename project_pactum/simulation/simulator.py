@@ -88,7 +88,7 @@ class Simulator:
     def __init__(self,
                  seed=None,
                  start_hour=None,
-                 model='GPT-2',
+                 model='BERT',
                  spot_instance_trace=None,
                  generate_addition_probabilities=False,
                  removal_probability=None,
@@ -222,10 +222,10 @@ class Simulator:
             self.on_demand_value = self.on_demand_performance / self.on_demand_cost
         elif model == 'BERT':
             self.samples_per_step = 264
-            self.steps_per_run = 183_106
+            self.steps_per_run = 22_194
 
-            self.spot_instance_desired_capacity = 60
-            self.num_stages_target = 15
+            self.spot_instance_desired_capacity = 48
+            self.num_stages_target = 12
             self.simulate_step_delta = self.bert_simulate_step_delta
             self.local_rendezvous_timeout_delta = 20_000 # milliseconds
 
@@ -312,6 +312,14 @@ class Simulator:
             self.step_delta = 3_100 # milliseconds
         elif self.num_pipelines == 1 and self.num_stages == 8:
             self.step_delta = 5_700 # milliseconds
+        elif self.num_pipelines == 4 and self.num_stages == 12:
+            self.step_delta = 1_450 # milliseconds
+        elif self.num_pipelines == 3 and self.num_stages == 12:
+            self.step_delta = 1_805 # milliseconds
+        elif self.num_pipelines == 2 and self.num_stages == 12:
+            self.step_delta = 2_390 # milliseconds
+        elif self.num_pipelines == 1 and self.num_stages == 12:
+            self.step_delta = 4_310 # milliseconds
         elif self.num_pipelines == 4 and self.num_stages == 15:
             self.step_delta = 3_700 # milliseconds
         elif self.num_pipelines == 3 and self.num_stages == 15:
