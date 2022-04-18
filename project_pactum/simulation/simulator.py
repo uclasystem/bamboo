@@ -208,25 +208,26 @@ class Simulator:
         self.spot_instance_cost_per_hour = 0.91
 
         if model == 'GPT-2':
-            self.samples_per_step = 264
-            self.steps_per_run = 183_106
+            self.samples_per_step = 32
+            self.steps_per_run = 188_828
 
-            self.spot_instance_desired_capacity = 32
+            self.spot_instance_desired_capacity = 48
             self.simulate_step_delta = self.gpt_2_simulate_step_delta
             self.local_rendezvous_timeout_delta = 20_000 # milliseconds
-            self.num_stages_target = 8
+            self.num_stages_target = 12
 
-            self.on_demand_num_instances = 4 * 5
+            self.on_demand_num_instances = 4 * 8
             self.on_demand_cost = self.on_demand_num_instances * self.on_demand_cost_per_hour
             self.on_demand_performance = self.samples_per_step / 3.37
             self.on_demand_value = self.on_demand_performance / self.on_demand_cost
         elif model == 'BERT':
             self.samples_per_step = 264
+            self.steps_per_run = 183_106
 
-            self.spot_instance_desired_capacity = 24
+            self.spot_instance_desired_capacity = 60
+            self.num_stages_target = 15
             self.simulate_step_delta = self.bert_simulate_step_delta
             self.local_rendezvous_timeout_delta = 20_000 # milliseconds
-            self.num_stages_target = 8
 
             self.on_demand_num_instances = 4 * 5
             self.on_demand_cost = self.on_demand_num_instances * self.on_demand_cost_per_hour
@@ -235,7 +236,7 @@ class Simulator:
         elif model == 'ResNet':
             self.samples_per_step = 384
 
-            self.spot_instance_desired_capacity = 24
+            self.spot_instance_desired_capacity = 32
             self.simulate_step_delta = self.resnet_simulate_step_delta
             self.local_rendezvous_timeout_delta = 10_000 # milliseconds
             self.num_stages_target = 8
@@ -291,14 +292,14 @@ class Simulator:
         return probability
 
     def gpt_2_simulate_step_delta(self):
-        if self.num_pipelines == 4 and self.num_stages == 8:
-            self.step_delta = 2_390 # milliseconds
-        elif self.num_pipelines == 3 and self.num_stages == 8:
-            self.step_delta = 3_080 # milliseconds
-        elif self.num_pipelines == 2 and self.num_stages == 8:
-            self.step_delta = 4_200 # milliseconds
-        elif self.num_pipelines == 1 and self.num_stages == 8:
-            self.step_delta = 7_700 # milliseconds
+        if self.num_pipelines == 4 and self.num_stages == 12:
+            self.step_delta = 1_008 # milliseconds
+        elif self.num_pipelines == 3 and self.num_stages == 12:
+            self.step_delta = 1_046 # milliseconds
+        elif self.num_pipelines == 2 and self.num_stages == 12:
+            self.step_delta = 1_085 # milliseconds
+        elif self.num_pipelines == 1 and self.num_stages == 12:
+            self.step_delta = 1_200 # milliseconds
         else:
             raise NotImplementedError
 
@@ -311,6 +312,14 @@ class Simulator:
             self.step_delta = 3_100 # milliseconds
         elif self.num_pipelines == 1 and self.num_stages == 8:
             self.step_delta = 5_700 # milliseconds
+        elif self.num_pipelines == 4 and self.num_stages == 15:
+            self.step_delta = 3_700 # milliseconds
+        elif self.num_pipelines == 3 and self.num_stages == 15:
+            self.step_delta = 4_780 # milliseconds
+        elif self.num_pipelines == 2 and self.num_stages == 15:
+            self.step_delta = 6_600 # milliseconds
+        elif self.num_pipelines == 1 and self.num_stages == 15:
+            self.step_delta = 12_750 # milliseconds
         else:
             raise NotImplementedError
 
