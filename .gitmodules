@@ -1,6 +1,3 @@
-[submodule "external/deepspeed"]
-	path = external/deepspeed
-	url = git@github.com:johnnt849/project-pactum-deepspeed.git
 [submodule "doc/conference-paper"]
 	path = doc/conference-paper
 	url = git@github.com:johnnt849/project-pactum-conference-paper.git
