@@ -1,0 +1,3 @@
+[submodule "DeepSpeedExamples"]
+	path = DeepSpeedExamples
+	url = git@github.com:johnnt849/project-pactum-deepspeed-examples.git

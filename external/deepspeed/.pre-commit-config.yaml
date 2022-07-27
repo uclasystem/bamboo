@@ -1,0 +1,25 @@
+
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v1.2.3
+    hooks:
+    -   id: trailing-whitespace
+        exclude: "examples/"
+    -   id: check-yaml
+        exclude: "examples/"
+    -   id: end-of-file-fixer
+        exclude: "examples/"
+        exclude: "docs/CNAME"
+
+
+-   repo: https://github.com/pre-commit/mirrors-yapf
+    rev: v0.29.0
+    hooks:
+    -   id: yapf
+        exclude: "examples/"
+
+-   repo: https://gitlab.com/daverona/pre-commit-cpp
+    rev: 0.6.0
+    hooks:
+    -   id: clang-format  # formatter of C/C++ code based on a style guide: LLVM, Google, Chromium, Mozilla, and WebKit available
+        args: []
