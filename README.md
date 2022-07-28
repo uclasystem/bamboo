@@ -2,6 +2,8 @@
 
 Afforable deep learning through resilient preemptible instances.
 
+v0.1 - 01/20/22
+
 ## Setup
 
 Ensure you have the following requirements:
