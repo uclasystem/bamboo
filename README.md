@@ -1,8 +1,14 @@
-# Bamboo
-
 Afforable deep learning through resilient preemptible instances.
 
 v0.1 - 01/20/22
+
+# Summary of Bamboo
+Bamboo is a system for running large scale DNNs using **pipeline parallelism**
+affordably, reliably, and efficiently on spot instances.
+It is built on top of [DeepSpeed](https://github.com/microsoft/DeepSpeed).
+It uses redundant computation in the pipeline by taking advantage of
+pipeline bubbles to enable low-pause recovery from failures.
+
 
 ## Setup
 
